@@ -18,3 +18,7 @@ Interact with the mouse in order to trigger events monitored by the script in an
 - [ ] Complete the functions
 - [x] Design the DAC board
 - [ ] Build the DAC board
+
+
+## Hardware:
+<p><img src='./Mouse%20module.svg'></p>
