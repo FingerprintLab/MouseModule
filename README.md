@@ -12,6 +12,7 @@ Interact with the mouse in order to trigger events monitored by the script in an
 
 ## To do:
 - [x] Find a Python library for mouse events
+- [ ] Check for mouses
 - [x] Monitor the mouse events
 - [ ] Find a Python SPI library
 - [ ] Implement the SPI interface
