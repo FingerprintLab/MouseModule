@@ -1,6 +1,7 @@
 import asyncio
 import evdev
 from evdev import InputDevice, categorize, ecodes
+## import spi
 
 def showCoord(x, y, time=0):
     if time == 0:
@@ -30,6 +31,7 @@ def gate():
         print("Start gate signal")
         # Start gate
         
+        
     else:
         print("Stop gate signal")
         # Stop gate
@@ -54,8 +56,14 @@ rec = False
 pb = False
 gt = False
 os = False
-device = evdev.InputDevice("/dev/input/event2")
+#device = evdev.InputDevice("/dev/input/event2")
+devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+for dev in devices:
+    if "mouse" in dev.name or "Mouse" in dev.name:
+        device = dev
+        print (device)
 
+## device_0 = spi.openSPI(device="/dev/spidev0.0",mode=0,speed=20000000,bits=12,delay=0)
 
 async def helper(device):
     async for event in device.async_read_loop():
@@ -126,3 +134,4 @@ async def helper(device):
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(helper(device))
+## spi.closeSPI(device_0)
