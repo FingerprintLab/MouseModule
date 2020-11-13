@@ -1,5 +1,5 @@
 # MouseModule
-Mouse controlled eurorack module. Software written in Python using [evdev](https://python-evdev.readthedocs.io) and [spidev](https://github.com/lthiery/SPI-Py). Hardware powered by [Raspberry Pi Zero](https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md) and [MCP4922](http://ww1.microchip.com/downloads/en/DeviceDoc/22250A.pdf).
+Mouse controlled eurorack module, both 1 and 2 mouse version. Software written in Python using [evdev](https://python-evdev.readthedocs.io) and [spidev](https://github.com/lthiery/SPI-Py). Hardware powered by [Raspberry Pi Zero](https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md) and [MCP4922](http://ww1.microchip.com/downloads/en/DeviceDoc/22250A.pdf).
 
 ## Functions:
 Interact with the mouse in order to trigger events monitored by the script in an asynchronous for loop. Already implemented functions are:
