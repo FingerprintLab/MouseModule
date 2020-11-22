@@ -18,7 +18,7 @@ Interact with the mouse in order to trigger events monitored by the script in an
 - [ ] Implement the SPI interface
 - [ ] Complete the functions
 - [x] Design the DAC board
-- [ ] Build the DAC board
+- [ ] Prototype
 
 
 ## Hardware:
