@@ -1,7 +1,10 @@
+import os
 import asyncio
 import evdev
 from evdev import InputDevice, categorize, ecodes
 ## import spi
+
+os.system("cls" if os.name == "nt" else "clear")
 
 def showCoord(x, y, time=0):
     if time == 0:
@@ -62,6 +65,8 @@ for dev in devices:
     if "mouse" in dev.name or "Mouse" in dev.name:
         device = dev
         print (device)
+        #a = dev.capabilities(True, True)
+        #print(a)
 
 ## device_0 = spi.openSPI(device="/dev/spidev0.0",mode=0,speed=20000000,bits=12,delay=0)
 
@@ -124,13 +129,13 @@ async def helper(device):
                     print("Offset mode")
                     os = True
                 
-        elif event.type == ecodes.EV_REL:
+        elif event.type == ecodes.EV_REL and event.code == 8:
             relEvent = categorize(event)
-            if relEvent.event.value == -1:
+            if event.value == -1:
                 wheel(True)
             else:
                 wheel(False)
-            
+                
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(helper(device))
