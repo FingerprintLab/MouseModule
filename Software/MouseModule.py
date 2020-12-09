@@ -18,16 +18,12 @@ def record(t):
         # Record using timestamps
         
     else:
-        print("Stop recording")
+        print("Stop recording, start playback")
         # Stop record
         
-def playback():
-    if pb:
-        print("Start playback")
-        # Playback from recorder signal
-        
-    else:
-        print("Stop playback")
+def erase():
+    print("Erase recording")
+    # Erase recorded automation
 
 def gate():
     if gt:
@@ -56,7 +52,6 @@ def wheel(plus):
             print("Decrease range")
 
 rec = False
-pb = False
 gt = False
 os = False
 #device = evdev.InputDevice("/dev/input/event2")
@@ -89,16 +84,11 @@ async def helper(device):
                 keyCode = keyEvent.keycode
                 keyState = keyEvent.keystate
             
-            global pb
             global rec
             global gt
             global os
-         
+            
             if keyCode == "BTN_EXTRA" and keyState == 1:
-                if pb:
-                    pb = False
-                    playback()
-                    
                 rec = not rec
                 record(time)
                 
@@ -106,9 +96,7 @@ async def helper(device):
                 if rec:
                     rec = False
                     record(time)
-                    
-                pb = not pb
-                playback()
+                erase()
                 
             elif keyCode == "BTN_LEFT" and keyState == 1:
                 trigger()
