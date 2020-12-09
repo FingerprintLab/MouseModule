@@ -8,9 +8,9 @@ os.system("cls" if os.name == "nt" else "clear")
 
 def showCoord(x, y, time=0):
     if time == 0:
-        print (str(x), str(y))
+        print ("X=", x, " Y=", y)
     else:
-        print (str(x), str(y), str(time))
+        print ("X=", x, " Y=", y, " T=", time)
 
 def record(t):
     if rec:
@@ -69,11 +69,11 @@ async def helper(device):
     async for event in device.async_read_loop():
 
         time = event.timestamp()
-
+        
         if event.type == ecodes.EV_ABS: 
             absX = float((device.absinfo(ecodes.ABS_X)).value) / float((device.absinfo(ecodes.ABS_X)).max)
             absY = float((device.absinfo(ecodes.ABS_Y)).value) / float((device.absinfo(ecodes.ABS_Y)).max)
-            #showCoord(absX, absY)
+            showCoord(absX, absY)
 
         elif event.type == ecodes.EV_KEY:
             keyEvent = categorize(event)
@@ -117,12 +117,17 @@ async def helper(device):
                     print("Offset mode")
                     os = True
                 
-        elif event.type == ecodes.EV_REL and event.code == 8:
-            relEvent = categorize(event)
-            if event.value == -1:
-                wheel(True)
-            else:
-                wheel(False)
+        elif event.type == ecodes.EV_REL:
+            if event.code == 0 or event.code == 1:
+                print("Mouse moved")
+                #x = dev.absinfo(ecodes.REL_X)
+                #print(x)
+                
+            elif event.code == 8:
+                if event.value == -1:
+                    wheel(True)
+                else:
+                    wheel(False)
                 
 
 loop = asyncio.get_event_loop()
