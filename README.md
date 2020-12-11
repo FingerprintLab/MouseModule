@@ -1,7 +1,7 @@
 # MouseModule
 Mouse controlled eurorack module, both 2 and 1 mouse version. Software written in Python using [evdev](https://python-evdev.readthedocs.io) and [spidev](https://github.com/lthiery/SPI-Py). Hardware powered by [Raspberry Pi Zero](https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md) and [MCP4922](http://ww1.microchip.com/downloads/en/DeviceDoc/22250A.pdf).
 
-## Functions:
+## Functions
 Interact with the mouse in order to trigger events monitored by the script in an asynchronous for loop. Already implemented functions are:
 * `showCoord(x, y, t=0)`: shows the mouse coordinates and optionally the timestamp.
 * `record(t)`: triggered by the `BTN_EXTRA`, this function should start the recording and stop the recording (thus starting the playback). Takes as argument the timestamp of the event wich triggered the function. When this function is active, triggering the `erase()` function will stop and erase the recording.
@@ -21,7 +21,7 @@ Interact with the mouse in order to trigger events monitored by the script in an
 - [ ] Prototype
 
 
-## Hardware:
+## Hardware
 2 mice version
 <p><img src='./Mouse%20module.svg'></p>
 1 mouse version
