@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <p id="coordinates">X: ___, Y: ___</p>
+    <div id="console" style="display: inline-block; max-height: 800px;  width: 100px; overflow: scroll;"></div>
+    <script>
+        document.addEventListener("mousemove", (e) => {
+            document.getElementById("coordinates").innerHTML = "X: " + e.x + ", Y: " + e.y;
+        })
+        document.addEventListener("mousedown", (e) => {
+            
+            var tag = document.createElement("p");
+            var text = document.createTextNode(e.buttons);
+            tag.appendChild(text);
+            var element = document.getElementById("console");
+            element.appendChild(tag);
+            console.log(e.buttons);
+        })
+    </script>
+</body>
+</html>
