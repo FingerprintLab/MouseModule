@@ -2,7 +2,7 @@
 var mode = true, rec = false;
 var attenuation = 0, offset = 0;
 var recording = new Array();
-
+console.log(recording.length);
 
 document.addEventListener("mousemove", (e) => {
     document.getElementById("coordinates").innerHTML = "X: " + e.x + ", Y: " + e.y;
@@ -20,9 +20,6 @@ document.addEventListener("mousedown", (e) => {
     if (element.firstChild != null)
         element.removeChild(element.firstChild);
     element.appendChild(tag);
-    if (rec) {
-        recording.push(e);
-    }
 })
 document.addEventListener("mouseup", (e) => {
     e.preventDefault()
@@ -35,9 +32,6 @@ document.addEventListener("mouseup", (e) => {
     if (element.firstChild != null)
         element.removeChild(element.firstChild);
     element.appendChild(tag);
-    if (rec) {
-        recording.push(e);
-    }
 })
 document.getElementById("main").onwheel = function(e) {wheel(e)};
 
@@ -65,9 +59,6 @@ function wheel(e) {
     if (element.firstChild != null)
         element.removeChild(element.firstChild);
     element.appendChild(tag);
-    if (rec) {
-        recording.push(e);
-    }
 }
 
 
@@ -85,34 +76,43 @@ function mouseDown(e) {
         return "CHANGE MODE TO " + (mode ? "ATTENUATION" : "OFFSET");
     }
     else if (button === 8) {
+	    if (rec)
+            rec = false;
         recording.splice(0,recording.length);
         return "ERASE";
     }
     else if (button === 16) {
         rec = !rec;
-        if (!rec && recording.length === 0)
-            console.log("Error: no recording to playback");
-        else playback();
-        return (rec ? "START RECORDING" : "PLAYBACK STOPPED");
+        if (!rec && recording.length !== 0)
+            playback();
+	else
+	    recording.push(e);
+        return (rec ? "START RECORDING" : "PLAYBACK");
     }
     else return button;
 }
 
 function playback() {
-    console.log("In playback");
-    let stop = false;
-    while(stop) {
-        document.addEventListener("mousedown", (e) => {
-            e.preventDefault()
-            if (e.buttons === 8)
-                stop = true;
-        });
-
-        for (let i in recording) {
-            console.log(i + ": ");
-            console.log(recording[i]);
+    let pointer = document.getElementById("pointer");
+    console.log(recording);
+    pointer.style.top = (recording[0].y - 5) + "px";
+    pointer.style.left = (recording[0].x - 5) + "px";
+    setInterval(function() {
+        for (let i = 1; i < recording.length; i++) {
+	        setTimeout(function() {
+                pointer.style.top = (recording[i].y - 5) + "px";
+                pointer.style.left = (recording[i].x - 5) + "px";
+            }, (recording[i].timeStamp - recording[i-1].timeStamp));
         }
-
-        document.removeEventListener("mousedown");
-    }
+    }, (recording[recording.length-1].timeStamp - recording[0].timeStamp));
 }
+
+function sleep(ms) {
+    const date = Date.now();
+    let currentDate = null;
+    do {
+        currentDate = Date.now();
+    } while(currentDate - date < ms);
+}
+
+
