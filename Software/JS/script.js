@@ -99,6 +99,7 @@ function mouseDown(e) {
 }
 
 function playback() {
+    console.log("In playback");
     let stop = false;
     while(stop) {
         document.addEventListener("mousedown", (e) => {
