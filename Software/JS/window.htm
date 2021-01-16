@@ -66,7 +66,7 @@
             element.appendChild(tag);
         }
 
-        var mode = true;
+        var mode = true, record = false;
         function mouseDown(e) {
             var button = e.buttons;
             if (button === 1) {
@@ -84,7 +84,8 @@
                 return "ERASE";
             }
             else if (button === 16) {
-                return "RECORD";
+                record = !record;
+		return (record ? "START RECORDING" : "STOP RECORDING, START PLAYBACK");
             }
             else return button;
         }
