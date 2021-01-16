@@ -47,7 +47,7 @@
             var text;
             if (e.deltaY > 0) {
                 if (mode)
-                    text = document.createTextNode("Attenuation: " + (--attenuation));
+                    text = document.createTextNode("Attenuation: " + (--attenuation)); //attenuation = attenuation - 1
                 else
                     text = document.createTextNode("Offset: " + (--offset));
             }
@@ -85,7 +85,7 @@
             }
             else if (button === 16) {
                 record = !record;
-		return (record ? "START RECORDING" : "STOP RECORDING, START PLAYBACK");
+		        return (record ? "START RECORDING" : "STOP RECORDING, START PLAYBACK");
             }
             else return button;
         }
