@@ -1,1 +1,0 @@
-chromium-browser -kiosk window.htm
