@@ -5,16 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
 </head>
-<body>
-    <p id="coordinates">X: ___, Y: ___</p>
-    <div id="console"></div>
+<body style="overflow: hidden;" oncontextmenu="return false;">
+    <div id="main" style="width: 100vw; height: 100vh;">
+        <p id="coordinates">X: ___, Y: ___</p>
+        <div id="console"></div>
+    </div>
+    
     <script>
         document.addEventListener("mousemove", (e) => {
             document.getElementById("coordinates").innerHTML = "X: " + e.x + ", Y: " + e.y;
         })
         document.addEventListener("mousedown", (e) => {
+            e.preventDefault()
             var tag = document.createElement("p");
-            var text = document.createTextNode(decodeEvent(e));
+            var text = document.createTextNode(mouseDown(e));
             tag.appendChild(text);
 
             var element = document.getElementById("console");
@@ -22,17 +26,59 @@
                 element.removeChild(element.firstChild);
             element.appendChild(tag);
         })
+        document.addEventListener("mouseup", (e) => {
+            e.preventDefault()
+            var tag = document.createElement("p");
+            if (e.button !== 2) return
+            var text = document.createTextNode("STOP GATE");
+            tag.appendChild(text);
 
-        function decodeEvent(e) {
+            var element = document.getElementById("console");
+            if (element.firstChild != null)
+                element.removeChild(element.firstChild);
+            element.appendChild(tag);
+        })
+        document.getElementById("main").onwheel = function(e) {wheel(e)};
+
+        var attenuation = 0, offset = 0;
+        function wheel(e) {
+            e.preventDefault();
+            var tag = document.createElement("p");
+            var text;
+            if (e.deltaY > 0) {
+                if (mode)
+                    text = document.createTextNode("Attenuation: " + (--attenuation));
+                else
+                    text = document.createTextNode("Offset: " + (--offset));
+            }
+            else {
+                if (mode)
+                    text = document.createTextNode("Attenuation: " + (++attenuation));
+                else
+                    text = document.createTextNode("Offset: " + (++offset));
+            }
+            
+            tag.appendChild(text);
+
+            var element = document.getElementById("console");
+            if (element.firstChild != null)
+                element.removeChild(element.firstChild);
+            element.appendChild(tag);
+        }
+
+        var mode = true;
+        function mouseDown(e) {
             var button = e.buttons;
             if (button === 1) {
-                return "TRIGGER";
+                return "TRIGGER PLUSE";
             }
             else if (button === 2) {
-                return "GATE";
+                return "START GATE";
             }
             else if (button === 4) {
-                return "CHANGE MODE";
+                mode = !mode;
+                console.log(mode);
+                return "CHANGE MODE TO " + (mode ? "ATTENUATION" : "OFFSET");
             }
             else if (button === 8) {
                 return "ERASE";
