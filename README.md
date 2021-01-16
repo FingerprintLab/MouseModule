@@ -2,7 +2,7 @@
 Mouse controlled eurorack module, both 2 and 1 mouse version. Software written in Python using [evdev](https://python-evdev.readthedocs.io) and [spidev](https://github.com/lthiery/SPI-Py). Hardware powered by [Raspberry Pi Zero](https://www.raspberrypi.org/documentation/hardware/raspberrypi/spi/README.md) and [MCP4922](http://ww1.microchip.com/downloads/en/DeviceDoc/22250A.pdf).  
   
 JS:  
-- Atomatically run shell command to open the browser (Chromium) in kiosk mode and navigate to `window.htm`.  
+- Automatically run shell command to open the browser (Chromium) in kiosk mode and navigate to `window.htm`.  
 - Run js script collecting mouse events.  
 - Use an SPI library ([spi-device](https://www.npmjs.com/package/spi-device) or [pi-spi](https://www.npmjs.com/package/pi-spi)) to send data to the DAC.  
 

@@ -13,14 +13,35 @@
             document.getElementById("coordinates").innerHTML = "X: " + e.x + ", Y: " + e.y;
         })
         document.addEventListener("mousedown", (e) => {
-            
             var tag = document.createElement("p");
-            var text = document.createTextNode(e.buttons);
+            var text = document.createTextNode(decodeEvent(e));
             tag.appendChild(text);
+
             var element = document.getElementById("console");
+            if (element.firstChild != null)
+                element.removeChild(element.firstChild);
             element.appendChild(tag);
-            console.log(e.buttons);
         })
+
+        function decodeEvent(e) {
+            var button = e.buttons;
+            if (button === 1) {
+                return "TRIGGER";
+            }
+            else if (button === 2) {
+                return "GATE";
+            }
+            else if (button === 4) {
+                return "CHANGE MODE";
+            }
+            else if (button === 8) {
+                return "ERASE";
+            }
+            else if (button === 16) {
+                return "RECORD";
+            }
+            else return button;
+        }
     </script>
 </body>
 </html>
