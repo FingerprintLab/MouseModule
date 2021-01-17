@@ -2,7 +2,25 @@
 var mode = true, rec = false;
 var attenuation = 0, offset = 0;
 var recording = new Array();
-console.log(recording.length);
+
+// ONLY FOR DEBUGGING PURPOSES
+document.addEventListener("keydown", (e) => {
+    e.preventDefault();
+    if (e.key === "r" || e.key === "R") {
+        rec = !rec;
+        if (!rec && recording.length !== 0)
+            playback();
+	    else
+	        recording.push(e);
+         (rec ? "START RECORDING" : "PLAYBACK");
+    }
+    else if (e.key === "e" || e.key === "E") {
+        if (rec)
+            rec = false;
+        recording.splice(0,recording.length);
+        return "ERASE";
+    }
+});
 
 document.addEventListener("mousemove", (e) => {
     document.getElementById("coordinates").innerHTML = "X: " + e.x + ", Y: " + e.y;
@@ -72,7 +90,6 @@ function mouseDown(e) {
     }
     else if (button === 4) {
         mode = !mode;
-        console.log(mode);
         return "CHANGE MODE TO " + (mode ? "ATTENUATION" : "OFFSET");
     }
     else if (button === 8) {
@@ -85,8 +102,8 @@ function mouseDown(e) {
         rec = !rec;
         if (!rec && recording.length !== 0)
             playback();
-	else
-	    recording.push(e);
+	    else
+	        recording.push(e);
         return (rec ? "START RECORDING" : "PLAYBACK");
     }
     else return button;
@@ -94,25 +111,20 @@ function mouseDown(e) {
 
 function playback() {
     let pointer = document.getElementById("pointer");
-    console.log(recording);
     pointer.style.top = (recording[0].y - 5) + "px";
     pointer.style.left = (recording[0].x - 5) + "px";
+    recursiveTimeout(1);
     setInterval(function() {
-        for (let i = 1; i < recording.length; i++) {
-	        setTimeout(function() {
-                pointer.style.top = (recording[i].y - 5) + "px";
-                pointer.style.left = (recording[i].x - 5) + "px";
-            }, (recording[i].timeStamp - recording[i-1].timeStamp));
-        }
+       recursiveTimeout(1);
     }, (recording[recording.length-1].timeStamp - recording[0].timeStamp));
 }
 
-function sleep(ms) {
-    const date = Date.now();
-    let currentDate = null;
-    do {
-        currentDate = Date.now();
-    } while(currentDate - date < ms);
+function recursiveTimeout(i) {
+    if (i<recording.length) {
+        setTimeout(function() {
+            pointer.style.top = (recording[i].y - 5) + "px";
+            pointer.style.left = (recording[i].x - 5) + "px";
+            recursiveTimeout(i+1);
+        }, (recording[i].timeStamp - recording[i-1].timeStamp));
+    }
 }
-
-
