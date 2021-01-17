@@ -1,130 +1,185 @@
 // GLOBAL VARIABLES //
-var mode = true, rec = false;
+var mode = true, rec = false, pb = false;
 var attenuation = 0, offset = 0;
 var recording = new Array();
+var pointer = document.getElementById("pointer");
+var range = document.getElementById("range");
+var timeouts = new Array(), interval;
 
-// ONLY FOR DEBUGGING PURPOSES
+// -------- ONLY FOR DEBUGGING PURPOSES -------- //
 document.addEventListener("keydown", (e) => {
-    e.preventDefault();
     if (e.key === "r" || e.key === "R") {
-        rec = !rec;
-        if (!rec && recording.length !== 0)
-            playback();
-	    else
-	        recording.push(e);
-         (rec ? "START RECORDING" : "PLAYBACK");
+        record(e);
     }
     else if (e.key === "e" || e.key === "E") {
-        if (rec)
-            rec = false;
-        recording.splice(0,recording.length);
-        return "ERASE";
+        erase();
     }
 });
+// --------------------------------------------- //
 
+
+
+// X & Y MOVEMENTS  TODO: Constrain movements within the grey box (attenuation & offset)
 document.addEventListener("mousemove", (e) => {
-    document.getElementById("coordinates").innerHTML = "X: " + e.x + ", Y: " + e.y;
+    document.getElementById("coordinates").innerHTML = "X: " + (e.x / main.clientWidth - 0.5) + ", Y: " + (0.5 - e.y / main.clientHeight);
+    if (!pb) {
+        pointer.style.top = (e.y - 5) + "px";
+        pointer.style.left = (e.x - 5) + "px";
+    }
     if (rec) {
         recording.push(e);
     }
-})
+});
+
+// MOUSE BUTTONS
 document.addEventListener("mousedown", (e) => {
-    e.preventDefault()
-    var tag = document.createElement("p");
-    var text = document.createTextNode(mouseDown(e));
-    tag.appendChild(text);
-
-    var element = document.getElementById("console");
-    if (element.firstChild != null)
-        element.removeChild(element.firstChild);
-    element.appendChild(tag);
-})
-document.addEventListener("mouseup", (e) => {
-    e.preventDefault()
-    var tag = document.createElement("p");
-    if (e.button !== 2) return
-    var text = document.createTextNode("STOP GATE");
-    tag.appendChild(text);
-
-    var element = document.getElementById("console");
-    if (element.firstChild != null)
-        element.removeChild(element.firstChild);
-    element.appendChild(tag);
-})
-document.getElementById("main").onwheel = function(e) {wheel(e)};
-
-
-function wheel(e) {
     e.preventDefault();
-    var tag = document.createElement("p");
-    var text;
-    if (e.deltaY > 0) {
-        if (mode)
-            text = document.createTextNode("Attenuation: " + (--attenuation)); //attenuation = attenuation - 1
-        else
-            text = document.createTextNode("Offset: " + (--offset));
-    }
-    else {
-        if (mode)
-            text = document.createTextNode("Attenuation: " + (++attenuation));
-        else
-            text = document.createTextNode("Offset: " + (++offset));
-    }
-    
-    tag.appendChild(text);
-
-    var element = document.getElementById("console");
-    if (element.firstChild != null)
-        element.removeChild(element.firstChild);
-    element.appendChild(tag);
-}
-
+    mouseDown(e);
+});
+document.addEventListener("mouseup", (e) => {
+    e.preventDefault();
+    if (e.button !== 2) return;
+    gate(false);
+});
 
 function mouseDown(e) {
     var button = e.buttons;
     if (button === 1) {
-        return "TRIGGER PLUSE";
+        trigger();
     }
     else if (button === 2) {
-        return "START GATE";
+        gate(true)
     }
     else if (button === 4) {
-        mode = !mode;
-        return "CHANGE MODE TO " + (mode ? "ATTENUATION" : "OFFSET");
+        changeMode();
     }
     else if (button === 8) {
-	    if (rec)
-            rec = false;
-        recording.splice(0,recording.length);
-        return "ERASE";
+	    erase();
     }
     else if (button === 16) {
-        rec = !rec;
-        if (!rec && recording.length !== 0)
-            playback();
-	    else
-	        recording.push(e);
-        return (rec ? "START RECORDING" : "PLAYBACK");
+        record(e);
     }
     else return button;
 }
 
+function trigger() {
+    debug("TRIGGER PULSE");
+}
+
+function gate(active) {
+    if (active)
+        debug("GATE ON");
+    else
+        debug("GATE OFF");
+}
+
+function changeMode() {
+    mode = !mode;
+    debug("CHANGE MODE TO " + (mode ? "ATTENUATION" : "OFFSET"));
+}
+
+function record(e) {
+    if (pb)
+        erase();
+    rec = !rec;
+    if (!rec && recording.length !== 0)
+        playback();
+	else
+	    recording.push(e);
+    debug(rec ? "START RECORDING" : "PLAYBACK");
+}
+
+function erase() {
+    if (rec)
+        rec = false;
+    for (let i = 0; i < timeouts.length; i++) {
+        clearTimeout(timeouts[i]);
+    }
+    clearInterval(interval);
+
+    recording.splice(0,recording.length);
+    pb = false;
+    debug("ERASE");
+}
+
 function playback() {
-    let pointer = document.getElementById("pointer");
+    pb = true;
     pointer.style.top = (recording[0].y - 5) + "px";
     pointer.style.left = (recording[0].x - 5) + "px";
-    recursiveTimeout(1);
-    setInterval(function() {
-       recursiveTimeout(1);
+    timeouts.push(recursiveTimeout(1));
+    interval = setInterval(function() {
+       timeouts.push(recursiveTimeout(1));
     }, (recording[recording.length-1].timeStamp - recording[0].timeStamp));
 }
 
 function recursiveTimeout(i) {
     if (i<recording.length) {
         setTimeout(function() {
-            pointer.style.top = (recording[i].y - 5) + "px";
-            pointer.style.left = (recording[i].x - 5) + "px";
-            recursiveTimeout(i+1);
+            try {
+                pointer.style.top = (recording[i].y - 5) + "px";
+                pointer.style.left = (recording[i].x - 5) + "px";
+            }
+            catch(error) {
+                console.warn(error);
+            }
+            timeouts.push(recursiveTimeout(i+1));
         }, (recording[i].timeStamp - recording[i-1].timeStamp));
     }
+}
+
+function debug(message) {
+    var tag = document.createElement("p");
+    var text = document.createTextNode(message);
+    tag.appendChild(text);
+
+    var element = document.getElementById("console");
+    if (element.firstChild != null)
+        element.removeChild(element.firstChild);
+    element.appendChild(tag);
+}
+
+// SCROLL WHEEL
+document.getElementById("main").onwheel = function(e) {
+    e.preventDefault();
+    wheel(e.deltaY);
+};
+
+function wheel(delta) {
+    var message;
+    if (delta > 0) {
+        if (mode) {
+            if (attenuation > -10)
+                message = "Attenuation: " + (--attenuation);
+            else message = "Attenuation: " + (attenuation);
+        }
+        else {
+            if (offset > attenuation)
+                message = "Offset: " + (--offset);
+            else message = "Offset: " + (offset);
+        }
+    }
+    else {
+        if (mode) {
+            if (attenuation < (-Math.abs(offset)))
+                message = "Attenuation: " + (++attenuation);
+            else message = "Attenuation: " + (attenuation);
+        }
+        else {
+            if (offset < -(attenuation))
+                message = "Offset: " + (++offset);
+            else message = "Offset: " + (offset);
+        }
+    }
+    changeRange();
+    debug(message);
+}
+
+function changeRange() {
+    let att = (10 + attenuation) * 10;
+    range.style.width = att + "%";
+    range.style.height = att + "%";
+
+    let off = offset * 10;
+    range.style.bottom = ((100-att)/2 + off/2) + "%";
+    range.style.left = ((100-att)/2 + off/2) + "%";
 }
