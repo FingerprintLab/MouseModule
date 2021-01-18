@@ -17,34 +17,33 @@ function EventData(type, buttons, clientX, clientY, deltaY, timeStamp) {
     this.timeStamp = timeStamp;
 }
 
-// TODO : 
-// - Write a function to handle recorded events in playback
-// - Constrain movement by the offset value
+// TODO :
+// Issue: attenuation problem in playback
 
 
 addListeners();
 
 function handleMouseMove(e) {
-    ev = new EventData(e.type, e.buttons, e.clientX, e.clientY, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
     move(ev);
 }
 
 function handleMouseDown(e) {
     e.preventDefault();
-    ev = new EventData(e.type, e.buttons, e.clientX, e.clientY, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
     mouseDown(ev);
 }
 
 function handleMouseUp(e) {
     e.preventDefault();
     if (e.button !== 2) return;
-    ev = new EventData(e.type, e.buttons, e.clientX, e.clientY, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.button, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
     gate(ev);
 }
 
 function handleWheel(e) {
     //e.preventDefault();
-    ev = new EventData(e.type, e.buttons, e.clientX, e.clientY, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
     wheel(ev);
 }
 
@@ -90,7 +89,8 @@ function handleErase(e) {
     }
     else if (e.buttons === 16) {
         erase();
-        record();
+        ev = new EventData("mousedown", 16, width/2, height/2, 0, e.timeStamp);
+        record(ev);
     }
 }
 
@@ -102,17 +102,16 @@ function handleEraseKey(e) {
     // This is not working properly
     else if (e.key === "r" || e.key === "R") {
         erase();
-        record();
+        ev = new EventData("mousedown", 16, width/2, height/2, 0, e.timeStamp);
+        record(ev);
     }
 }
 
 function move(e) {
     constrain(e);
     document.getElementById("coordinates").innerHTML = "X: " + (e.clientX / width - 0.5) + ", Y: " + (e.clientY / height - 0.5);
-    if (!pb) {
-        pointer.style.bottom = (e.clientY - 5) + "px";
-        pointer.style.left = (e.clientX - 5) + "px";
-    }
+    pointer.style.bottom = (e.clientY - 5) + "px";
+    pointer.style.left = (e.clientX - 5) + "px";
     if (rec) {
         recording.push(e);
     }
@@ -120,17 +119,20 @@ function move(e) {
 
 function constrain(e) {
     let x = e.clientX/width - 0.5;
-    let y = 0.5 - e.clientY/height;
-    if (x > 0 && x > border)
-        x = border;
-    else if (x < 0 && x < -border)
-        x = -border;
-    if (y > 0 && y > border)
-        y = border;
-    else if (y < 0 && y < -border)
-        y = -border;
+    let y = e.clientY/height - 0.5;
+    let max = border + (offset / (maxAttenuation * 2));
+    let min = -border + (offset / (maxAttenuation * 2));
+    if (x > max)
+        x = max;
+    else if (x < min)
+        x = min;
     e.clientX = (x+0.5)*width;
-    e.clientY = (y+0.5)*height;
+    
+    if (y > max)
+        y = max;
+    else if (y < min)
+        y = min;
+    e.clientY = (0.5+y)*height;
 }
 
 function mouseDown(e) {
@@ -187,6 +189,7 @@ function record(e) {
 	else {
         startAtt = attenuation;
         startOff = offset;
+        console.log(startAtt + " " + startOff)
         recording.push(e);
     }
     debug(rec ? "START RECORDING" : "PLAYBACK");
@@ -199,29 +202,30 @@ function erase() {
         clearTimeout(timeouts[i]);
     }
     clearInterval(interval);
+    recording.splice(0,recording.length);
 
     if (removed) {
         // remove listeners inserted in playback mode
         document.removeEventListener("mousedown", handleErase);
         document.removeEventListener("keydown", handleEraseKey);
+        // add standard listeners
         addListeners();
     }
 
-    recording.splice(0,recording.length);
     pb = false;
     debug("ERASE");
 }
 
 function playback() {
     pb = true;
+    
     attenuation = startAtt;
     offset = startOff;
-
-    pointer.style.bottom = (recording[0].clientY - 5) + "px";
-    pointer.style.left = (recording[0].clientX - 5) + "px";
     timeouts.push(recursiveTimeout(1));
     interval = setInterval(function() {
-       timeouts.push(recursiveTimeout(1));
+        attenuation = startAtt; // why '+1' is needed?
+        offset = startOff;
+        timeouts.push(recursiveTimeout(1));
     }, (recording[recording.length-1].timeStamp - recording[0].timeStamp));
 }
 
@@ -229,8 +233,7 @@ function recursiveTimeout(i) {
     if (i<recording.length) {
         setTimeout(function() {
             try {
-                pointer.style.bottom = (recording[i].clientY - 5) + "px";
-                pointer.style.left = (recording[i].clientX - 5) + "px";
+                playbackEventHandler(recording[i]);
             }
             catch(error) {
                 console.warn(error);
@@ -238,6 +241,25 @@ function recursiveTimeout(i) {
             timeouts.push(recursiveTimeout(i+1));
         }, (recording[i].timeStamp - recording[i-1].timeStamp));
     }
+}
+
+function playbackEventHandler(e) {
+    let type = e.type;
+    if (type === "mousemove") {
+        move(e);
+    }
+    else if (type === "mousedown") {
+        if (e.buttons !== 16)
+            mouseDown(e);
+    }
+    else if (type === "mouseup") {
+        if (e.buttons !== 2) return;
+        gate(e);
+    }
+    else if (type === "wheel") {
+        wheel(e);
+    }
+    else console.warn("ERROR: Event not recognized");
 }
 
 function debug(message) {
@@ -251,9 +273,9 @@ function debug(message) {
     element.appendChild(tag);
 }
 
-function wheel(event) {
+function wheel(e) {
     var message;
-    if (event.deltaY > 0) {
+    if (e.deltaY > 0) {
         if (mode) {
             if (attenuation > -maxAttenuation)
                 message = "Attenuation: " + (--attenuation);
@@ -277,13 +299,15 @@ function wheel(event) {
             else message = "Offset: " + (offset);
         }
     }
-    changeRange(event);
+    changeRange(e);
     debug(message);
 }
 
-function changeRange(event) {
+function changeRange(e) {
+    console.log("start = " + startAtt);
+    console.log("attenuation = " + attenuation);
     border = 0.5 + (attenuation / (maxAttenuation * 2));
-    move(event);
+    move(e);
     let att = (maxAttenuation + attenuation) * (100/maxAttenuation);
     range.style.width = att + "%";
     range.style.height = att + "%";
