@@ -30,4 +30,4 @@ Interact with the mouse in order to trigger events monitored by the script in an
 2 mice version
 <p><img src='./Mouse%20module.svg'></p>
 1 mouse version
-<p><img src='./OneMouse/Mouse%20module%202.svg'></p>
+<p><img src='./OneMouse/Mouse%20module%202.svg'></p>  
