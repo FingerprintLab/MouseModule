@@ -223,7 +223,7 @@ function playback() {
     offset = startOff;
     timeouts.push(recursiveTimeout(1));
     interval = setInterval(function() {
-        attenuation = startAtt; // why '+1' is needed?
+        attenuation = startAtt; // ISSUE
         offset = startOff;
         timeouts.push(recursiveTimeout(1));
     }, (recording[recording.length-1].timeStamp - recording[0].timeStamp));
