@@ -1,9 +1,10 @@
 // GLOBAL VARIABLES //
 var mode = true, rec = false, pb = false;
 var attenuation = 0, offset = 0, maxAttenuation = 20, border = 0.5;
-var startAtt, startOff;
+var startAtt, startOff, startMode;
 var width = main.clientWidth, height = main.clientHeight;
 var ev;
+var posX, posY;
 var recording = new Array();
 var pointer = document.getElementById("pointer");
 var range = document.getElementById("range");
@@ -24,6 +25,8 @@ function EventData(type, buttons, clientX, clientY, deltaY, timeStamp) {
 addListeners();
 
 function handleMouseMove(e) {
+    posX = e.clientX;
+    posY = height - e.clientY;
     ev = new EventData(e.type, e.buttons, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
     move(ev);
 }
@@ -49,7 +52,8 @@ function handleWheel(e) {
 
 function handleKeyDown(e) {
     if (e.key === "r" || e.key === "R") {
-        ev = new EventData("mousedown", 16, width/2, height/2, 0, e.timeStamp);
+        console.log(e);
+        ev = new EventData("mousedown", 16, posX, posY, 0, e.timeStamp);
         record(ev);
     }
     else if (e.key === "e" || e.key === "E") {
@@ -89,7 +93,7 @@ function handleErase(e) {
     }
     else if (e.buttons === 16) {
         erase();
-        ev = new EventData("mousedown", 16, width/2, height/2, 0, e.timeStamp);
+        ev = new EventData("mousedown", 16, e.clientX, height - e.clientY, 0, e.timeStamp);
         record(ev);
     }
 }
@@ -186,10 +190,10 @@ function record(e) {
         removeListeners();
         playback();
     }
-	else {
+	else { // start recording
         startAtt = attenuation;
         startOff = offset;
-        console.log(startAtt + " " + startOff)
+        startMode = mode;
         recording.push(e);
     }
     debug(rec ? "START RECORDING" : "PLAYBACK");
@@ -218,15 +222,16 @@ function erase() {
 
 function playback() {
     pb = true;
-    
-    attenuation = startAtt;
+    animationPlayback();
+    interval = setInterval(animationPlayback, (recording[recording.length-1].timeStamp - recording[0].timeStamp));
+}
+
+function animationPlayback() {
+    attenuation = startAtt; // ISSUE TO SOLVE
     offset = startOff;
+    mode = startMode;
+    move(recording[0]);
     timeouts.push(recursiveTimeout(1));
-    interval = setInterval(function() {
-        attenuation = startAtt; // ISSUE TO SOLVE
-        offset = startOff;
-        timeouts.push(recursiveTimeout(1));
-    }, (recording[recording.length-1].timeStamp - recording[0].timeStamp));
 }
 
 function recursiveTimeout(i) {
@@ -304,8 +309,8 @@ function wheel(e) {
 }
 
 function changeRange(e) {
-    console.log("start = " + startAtt);
-    console.log("attenuation = " + attenuation);
+    //console.log("start = " + startAtt);
+    //console.log("attenuation = " + attenuation);
     border = 0.5 + (attenuation / (maxAttenuation * 2));
     move(e);
     let att = (maxAttenuation + attenuation) * (100/maxAttenuation);
