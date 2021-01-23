@@ -1,2 +1,5 @@
 # Ignore node_modules
 Software/JS/node_modules/
+
+# Ignore python files
+Software/Python/
