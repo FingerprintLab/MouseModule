@@ -1,0 +1,28 @@
+{
+  "name": "mouse_module",
+  "version": "1.0.0",
+  "description": "Eurorack module processing mouse events through the Raspberry Pi",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FingerprintLab/MouseModule.git"
+  },
+  "keywords": [
+    "eurorack",
+    "mouse",
+    "raspberry",
+    "raspberrypi"
+  ],
+  "author": "Fingerprint Lab",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/FingerprintLab/MouseModule/issues"
+  },
+  "homepage": "https://github.com/FingerprintLab/MouseModule#readme",
+  "dependencies": {
+    "rpio": "^2.4.2"
+  }
+}
