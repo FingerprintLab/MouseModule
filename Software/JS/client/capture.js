@@ -119,7 +119,7 @@ function move(e) {
     if (rec) {
         recording.push(e);
     }
-    sendServer(e);
+    //sendServer(e);
 }
 
 function constrain(e) {

@@ -27,12 +27,20 @@ app.post("/", (req, res) => {
             console.log("trigger pulse requested");
             trigger();
         }
+        else if (req.body.buttons === 2) {
+            console.log("gate on requested");
+            gate(true);
+        }
     }
-    res.send(req.body);
+    else if (req.body.type === "mouseup" && req.body.buttons === 2) {
+        console.log("gate off requested");
+        gate(false);
+    }
+    //res.send(req.body);
 });
 
 app.listen(port, () => {
-    console.log(`Example app listening on port ${port}!`)
+    console.log(`Server listening on port ${port}!`)
 });
 // --------------------------------------- //
 
@@ -50,6 +58,10 @@ function trigger() {
     rpio.write(PIN_OUT, rpio.HIGH);
     rpio.usleep(50);
     rpio.write(PIN_OUT, rpio.LOW); 
+}
+
+function gate(on) {
+    rpio.write(PIN_OUT, on ? rpio.HIGH : rpio.LOW);
 }
 
 
