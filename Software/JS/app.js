@@ -1,13 +1,46 @@
 //var childProcess = require('child_process'); 
 //childProcess.exec('chromium-browser -kiosk ../client/window.htm');
+
+
+
+// --------------- EXPRESS --------------- //
+const path = require("path");
+const express = require('express');
+const bodyParser = require("body-parser");
+
+const port = 3000;
+const app = express();
+
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname + '/client')));
+
+app.get("/", function(req, res) {
+    res.sendFile(path.join(__dirname + 'index.html'));
+});
+
+app.post("/", (req, res) => {
+    console.log("Request:");
+    console.log(req.body);
+    res.send(req.body);
+});
+
+app.listen(port, () => {
+    console.log(`Example app listening on port ${port}!`)
+});
+// --------------------------------------- //
+
+
+
+// ----------------- RPIO ---------------- //
 const PIN_OUT = 31;
 const PIN_IN = 29;
-var rpio = require("rpio");
+const rpio = require("rpio");
 
 rpio.open(PIN_OUT, rpio.OUTPUT, rpio.LOW);
 rpio.open(PIN_IN, rpio.INPUT, rpio.PULL_UP);
 
-var buttonPressed = false;
+let buttonPressed = false;
 
 function pollcb(pin) {
     rpio.msleep(10);
@@ -24,3 +57,4 @@ setInterval(function() {
     }, 1)
 }, 2);
 rpio.poll(PIN_IN, pollcb, rpio.POLL_LOW);
+// --------------------------------------- //
