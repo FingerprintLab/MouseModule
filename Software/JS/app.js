@@ -20,8 +20,8 @@ app.get("/", function(req, res) {
 });
 
 app.post("/", (req, res) => {
-    console.log("Request:");
-    console.log(req.body);
+    //console.log("Request:");
+    //console.log(req.body);
     if (req.body.type === "mousedown") {
         if (req.body.buttons === 1) {
             console.log("trigger pulse requested");

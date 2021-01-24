@@ -165,7 +165,9 @@ function trigger(e) {
         recording.push(e);
     }
     debug("TRIGGER PULSE");
-    sendServer(e);
+    sendServer(e)
+    .then(console.log("trigger signal sent"))
+    .catch(console.warn("error in trigger communication"));
 }
 
 function gate(e) {
@@ -177,7 +179,9 @@ function gate(e) {
     else {
         debug("GATE OFF");
     }
-    sendServer(e);
+    sendServer(e)
+    .then(console.log("gate signal sent"))
+    .catch(console.warn("error in gate communication"));
 }
 
 function changeMode(e) {
@@ -347,7 +351,7 @@ function sendServer(data) {
         const json = await response.json();
         return json; //this return a promise so in order to get it when it's resolved we have to use '.then()' 
     }
-    communicate()
-    .then(res => console.log(res))
-    .catch(err => console.log(err));
+    return communicate()
+    //.then(res => console.log(res))
+    //.catch(err => console.log(err));
 }
