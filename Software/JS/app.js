@@ -22,6 +22,12 @@ app.get("/", function(req, res) {
 app.post("/", (req, res) => {
     console.log("Request:");
     console.log(req.body);
+    if (req.body.type === "mousedown") {
+        if (req.body.buttons === 1) {
+            console.log("trigger pulse requested");
+            trigger();
+        }
+    }
     res.send(req.body);
 });
 
@@ -40,6 +46,17 @@ const rpio = require("rpio");
 rpio.open(PIN_OUT, rpio.OUTPUT, rpio.LOW);
 rpio.open(PIN_IN, rpio.INPUT, rpio.PULL_UP);
 
+function trigger() {
+    rpio.write(PIN_OUT, rpio.HIGH);
+    rpio.usleep(50);
+    rpio.write(PIN_OUT, rpio.LOW); 
+}
+
+
+
+
+
+/*
 let buttonPressed = false;
 
 function pollcb(pin) {
@@ -57,4 +74,5 @@ setInterval(function() {
     }, 1)
 }, 2);
 rpio.poll(PIN_IN, pollcb, rpio.POLL_LOW);
+*/
 // --------------------------------------- //
