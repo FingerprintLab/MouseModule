@@ -1,4 +1,4 @@
-//var childProcess = require('child_process'); 
+//var childProcess = require('child_process');
 //childProcess.exec('chromium-browser -kiosk ../client/window.htm');
 
 
@@ -36,11 +36,11 @@ app.post("/", (req, res) => {
         console.log("gate off requested");
         gate(false);
     }
-    //res.send(req.body);
+    res.send("communication succeeded");
 });
 
 app.listen(port, () => {
-    console.log(`Server listening on port ${port}!`)
+    console.log(`Server listening on port ${port}`)
 });
 // --------------------------------------- //
 

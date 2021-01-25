@@ -132,7 +132,7 @@ function constrain(e) {
     else if (x < min)
         x = min;
     e.clientX = (x+0.5)*width;
-    
+
     if (y > max)
         y = max;
     else if (y < min)
@@ -166,8 +166,8 @@ function trigger(e) {
     }
     debug("TRIGGER PULSE");
     sendServer(e)
-    .then(console.log("trigger signal sent"))
-    .catch(console.warn("error in trigger communication"));
+    .then((res) => {console.log("response: " + res)})
+    .catch((err) => {console.warn(err)});
 }
 
 function gate(e) {
@@ -180,8 +180,8 @@ function gate(e) {
         debug("GATE OFF");
     }
     sendServer(e)
-    .then(console.log("gate signal sent"))
-    .catch(console.warn("error in gate communication"));
+    .then((res) => {console.log("response: " + res)})
+    .catch((err) => {console.warn(err)});
 }
 
 function changeMode(e) {
@@ -348,10 +348,8 @@ function sendServer(data) {
     }
     async function communicate() {
         const response = await fetch("/", options);
-        const json = await response.json();
-        return json; //this return a promise so in order to get it when it's resolved we have to use '.then()' 
+        const text = await response.text();
+        return text; //this return a promise so in order to get it when it's resolved we have to use '.then()'
     }
     return communicate()
-    //.then(res => console.log(res))
-    //.catch(err => console.log(err));
 }
