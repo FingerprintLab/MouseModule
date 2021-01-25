@@ -17,5 +17,4 @@ The software is written in javascript and mainly contains the following function
 * `wheel(plus)`  
 
 ## Hardware
-2 mice version
 <p><img src='./OneMouse/Mouse%20module%202.svg'></p>
