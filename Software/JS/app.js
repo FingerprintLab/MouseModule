@@ -56,7 +56,7 @@ rpio.open(PIN_IN, rpio.INPUT, rpio.PULL_UP);
 
 function trigger() {
     rpio.write(PIN_OUT, rpio.HIGH);
-    rpio.usleep(50);
+    rpio.msleep(5);
     rpio.write(PIN_OUT, rpio.LOW); 
 }
 
