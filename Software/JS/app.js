@@ -48,12 +48,17 @@ app.listen(port, () => {
 
 // ----------------- RPIO ---------------- //
 const PIN_OUT = 31;
+const PIN_PWM = 32;
 const PIN_IN = 29;
 const rpio = require("rpio");
 
-rpio.open(PIN_OUT, rpio.OUTPUT, rpio.LOW);
-rpio.open(PIN_IN, rpio.INPUT, rpio.PULL_UP);
+rpio.open(PIN_PWM, rpio.PWM);
+rpio.pwmSetRange(PIN_PWM, 1024);
+rpio.pwmSetData(PIN_PWM, 512);
+//rpio.open(PIN_OUT, rpio.OUTPUT, rpio.LOW);
+//rpio.open(PIN_IN, rpio.INPUT, rpio.PULL_UP);
 
+/*
 function trigger() {
     rpio.write(PIN_OUT, rpio.HIGH);
     rpio.msleep(5);
@@ -63,6 +68,8 @@ function trigger() {
 function gate(on) {
     rpio.write(PIN_OUT, on ? rpio.HIGH : rpio.LOW);
 }
+*/
+
 
 
 
