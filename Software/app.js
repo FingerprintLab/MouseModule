@@ -47,26 +47,41 @@ app.listen(port, () => {
 
 
 // ----------------- RPIO ---------------- //
-const PIN_OUT = 31;
-const PIN_PWM = 12;
-const PIN_IN = 29;
-const rpio = require("rpio");
+var rpio = require('rpio');
 
-rpio.open(PIN_PWM, rpio.PWM);
-rpio.pwmSetClockDivider(8);
-rpio.pwmSetRange(PIN_PWM, 1024);
-//rpio.pwmSetData(PIN_PWM, 512);
+var pin = 12;           /* P12/GPIO18 */
+var range = 1024;       /* LEDs can quickly hit max brightness, so only use */
+var max = 128;          /*   the bottom 8th of a larger scale */
+var clockdiv = 8;       /* Clock divider (PWM refresh rate), 8 == 2.4MHz */
+var interval = 5;       /* setInterval timer, speed of pulses */
+var times = 5;          /* How many times to pulse before exiting */
 
-let t = 0;
-let val;
-while(true) {
-    val = (Math.sin(t) + 0.5) * 1024;
-    rpio.pwmSetData(PIN_PWM, val);
-    t += 0.001;
-    if (t >= 2*Math.PI) {
-        t = 0;
-    }
-}
+/*
+ * Enable PWM on the chosen pin and set the clock and range.
+ */
+rpio.open(pin, rpio.PWM);
+rpio.pwmSetClockDivider(clockdiv);
+rpio.pwmSetRange(pin, range);
+
+/*
+ * Repeatedly pulse from low to high and back again until times runs out.
+ */
+var direction = 1;
+var data = 0;
+var pulse = setInterval(function() {
+        rpio.pwmSetData(pin, data);
+        if (data === 0) {
+                direction = 1;
+                if (times-- === 0) {
+                        clearInterval(pulse);
+                        rpio.open(pin, rpio.INPUT);
+                        return;
+                }
+        } else if (data === max) {
+                direction = -1;
+        }
+        data += direction;
+}, interval, data, direction, times);
 
 //rpio.open(PIN_OUT, rpio.OUTPUT, rpio.LOW);
 //rpio.open(PIN_IN, rpio.INPUT, rpio.PULL_UP);
