@@ -2,7 +2,7 @@
 //childProcess.exec('chromium-browser -kiosk ../client/window.htm');
 
 
-
+/*
 // --------------- EXPRESS --------------- //
 const path = require("path");
 const express = require('express');
@@ -43,7 +43,7 @@ app.listen(port, () => {
     console.log(`Server listening on port ${port}`)
 });
 // --------------------------------------- //
-
+*/
 
 
 // ----------------- RPIO ---------------- //
@@ -55,7 +55,19 @@ const rpio = require("rpio");
 rpio.open(PIN_PWM, rpio.PWM);
 rpio.pwmSetClockDivider(8);
 rpio.pwmSetRange(PIN_PWM, 1024);
-rpio.pwmSetData(PIN_PWM, 512);
+//rpio.pwmSetData(PIN_PWM, 512);
+
+let t = 0;
+let val;
+while(true) {
+    val = (Math.sin(t) + 0.5) * 1024;
+    rpio.pwmSetData(PIN_PWM, val);
+    t += 0.001;
+    if (t >= 2*Math.PI) {
+        t = 0;
+    }
+}
+
 //rpio.open(PIN_OUT, rpio.OUTPUT, rpio.LOW);
 //rpio.open(PIN_IN, rpio.INPUT, rpio.PULL_UP);
 
