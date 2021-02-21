@@ -48,11 +48,12 @@ app.listen(port, () => {
 
 // ----------------- RPIO ---------------- //
 const PIN_OUT = 31;
-const PIN_PWM = 32;
+const PIN_PWM = 12;
 const PIN_IN = 29;
 const rpio = require("rpio");
 
 rpio.open(PIN_PWM, rpio.PWM);
+rpio.pwmSetClockDivider(8);
 rpio.pwmSetRange(PIN_PWM, 1024);
 rpio.pwmSetData(PIN_PWM, 512);
 //rpio.open(PIN_OUT, rpio.OUTPUT, rpio.LOW);
