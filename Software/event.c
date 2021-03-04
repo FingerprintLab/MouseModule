@@ -9,7 +9,7 @@
  * Uncomment these lines to avoid printing specific types of events
  */
 #define NO_SYN
-//#define NO_BTN
+#define NO_BTN
 //#define NO_REL
 //#define NO_ABS
 
@@ -47,7 +47,7 @@ const char* getCode(const char* type, const unsigned short c) {
                 return "SYN_CNT";
                 break;
             default:
-                return "NOT_KNOWN";
+                return "SYN_NOT_KNOWN";
                 break;
         }
     } else if (strcmp(type,"EV_KEY")) {
@@ -174,10 +174,16 @@ void printStr(unsigned int i, const struct str_event* event) {
 }
 
 int main(int argc, char** argv) {
+    if (argc == 1) {
+        printf("USAGE: ./event <event-number>\n");
+        return EXIT_FAILURE;
+    }
+    
     FILE *mouse;
     struct input_event systemEvent;
     struct str_event myEvent;
-    const char* filePath = "/dev/input/event6";
+    char filePath[18] = "/dev/input/event";
+    strcat(filePath, argv[1]);
 
     mouse = fopen(filePath, "r");
     if(mouse == NULL) {
