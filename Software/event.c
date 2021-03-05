@@ -1,3 +1,10 @@
+/*
+ * This program captures some significant mouse events
+ * and displays them in a human readable format. The 
+ * strings are taken from the definitions in "linux/input.h"
+ * Missing: VALUE field in myEvent
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,13 +13,17 @@
 #include <linux/input.h>
 
 /*
- * Uncomment these lines to avoid printing specific types of events
+ * Uncomment these lines to skip some events or some infos
  */
+#define NO_TIME
 #define NO_SYN
-#define NO_BTN
+//#define NO_BTN
 //#define NO_REL
-//#define NO_ABS
+#define NO_ABS
 
+/* 
+ * Human readable event struct
+ */
 struct str_event {
     struct timeval time;
     const char* type;
@@ -20,13 +31,22 @@ struct str_event {
     unsigned int value;
 };
 
+/*
+ * Print the raw event
+ */
 void printRaw(unsigned int i, const struct input_event* event) {
-    printf("%d.\nsec: %ld, usec: %ld type: %hu, code: %hu, value: %d\n",
+    printf("%d.\nsec: %ld, usec: %ld type: 0x%x, code: 0x%x, value: %d\n",
     i, event->time.tv_sec, event->time.tv_usec, event->type, event->code, event->value);
 }
 
+/* 
+ * Transform CODE field in a string value based 
+ * on the TYPE field
+ */
 const char* getCode(const char* type, const unsigned short c) {
-    if (strcmp(type,"EV_SYN")) {
+    //printf("B) TYPE: %s, CODE: 0x%x\n", type, c);
+    if (strcmp(type,"EV_SYN") == 0) {
+        //printf("SYN\n");
         switch(c) {
             case SYN_REPORT:
                 return "SYN_REPORT";
@@ -50,7 +70,8 @@ const char* getCode(const char* type, const unsigned short c) {
                 return "SYN_NOT_KNOWN";
                 break;
         }
-    } else if (strcmp(type,"EV_KEY")) {
+    } else if (strcmp(type,"EV_KEY") == 0) {
+        //printf("KEY\n");
         switch(c) {
             case BTN_LEFT:
                 return "BTN_LEFT";
@@ -80,7 +101,8 @@ const char* getCode(const char* type, const unsigned short c) {
                 return "BTN_OTHER";
                 break;
         }
-    } else if (strcmp(type, "EV_REL")) {
+    } else if (strcmp(type, "EV_REL") == 0) {
+        //printf("REL\n");
         switch(c) {
             case REL_X:
                 return "REL_X";
@@ -104,7 +126,8 @@ const char* getCode(const char* type, const unsigned short c) {
                 return "REL_OTHER";
                 break;
         }
-    } else if (strcmp(type,"EV_ABS")) {
+    } else if (strcmp(type,"EV_ABS") == 0) {
+        //printf("ABS\n");
         switch(c) {
             case ABS_X:
                 return "ABS_X";
@@ -126,54 +149,63 @@ const char* getCode(const char* type, const unsigned short c) {
                 break;
         }
     } else {
+        //printf("OTHER\n");
         return "CODE_OTHER";
     }
 }
 
+/*
+ * Set the human readable event from the raw event
+ */
 void setStrEvent(const struct input_event* systemEvent, struct str_event* event) {
-    event->time = systemEvent->time;
-    switch(systemEvent->type) {
-        case EV_SYN:
-            event->type = "EV_SYN";
-            break;
-        case EV_KEY:
-            event->type = "EV_KEY";
-            break;
-        case EV_REL:
-            event->type = "EV_REL";
-            break;
-        case EV_ABS:
-            event->type = "EV_ABS";
-            break;
-        default:
-            event->type = "TYPE_OTHER";
-            break;
+    if (systemEvent->type == EV_SYN) {
+        event->type = "EV_SYN";
+    } else if (systemEvent->type == EV_KEY) {
+        event->type = "EV_KEY";
+    } else if (systemEvent->type == EV_REL) {
+        event->type = "EV_REL";
+    } else if (systemEvent->type == EV_ABS) {
+        event->type = "EV_ABS";
+    } else {
+        event->type = "TYPE_OTHER";
     }
+
+    event->time = systemEvent->time;
+    event->value = systemEvent->value;
     event->code = getCode(event->type, systemEvent->code);
 }
 
+/*
+ * Print the human readable event
+ */
 void printStr(unsigned int i, const struct str_event* event) {
     #ifdef NO_SYN
-        if (strcmp(event->type,"EV_SYN")) return;
+        if (strcmp(event->type,"EV_SYN") == 0) return;
     #endif
     
     #ifdef NO_BTN
-        if (strcmp(event->type,"EV_KEY")) return;
+        if (strcmp(event->type,"EV_KEY") == 0) return;
     #endif
     
     #ifdef NO_REL
-        if (strcmp(event->type,"EV_REL")) return;
+        if (strcmp(event->type,"EV_REL") == 0) return;
     #endif
 
     #ifdef NO_ABS
-        if (strcmp(event->type,"EV_ABS")) return;
+        if (strcmp(event->type,"EV_ABS") == 0) return;
     #endif
     
-    printf("%d.\nSec: %ld, uSec: %ld Type: %s, Code: %s\n",
-    i, event->time.tv_sec, event->time.tv_usec, event->type, event->code);
+    #ifdef NO_TIME
+        printf("%d.\nType: %s, Code: %s, Value: %d\n",
+        i, event->type, event->code, event->value);
+    #else
+        printf("%d.\nSec: %ld, uSec: %ld Type: %s, Code: %s, Value: %d\n",
+        i, event->time.tv_sec, event->time.tv_usec, event->type, event->code, event->value);
+    #endif
 }
 
 int main(int argc, char** argv) {
+    // Check arguments
     if (argc == 1) {
         printf("USAGE: ./event <event-number>\n");
         return EXIT_FAILURE;
@@ -185,6 +217,7 @@ int main(int argc, char** argv) {
     char filePath[18] = "/dev/input/event";
     strcat(filePath, argv[1]);
 
+    // Open the file
     mouse = fopen(filePath, "r");
     if(mouse == NULL) {
         printf("ERROR Opening %s\n", filePath);
@@ -194,7 +227,8 @@ int main(int argc, char** argv) {
     unsigned int i = 0;
     while(1) {
         size_t bytes = fread(&systemEvent, sizeof(struct input_event), 1, mouse);
-	
+
+        // If we managed to read some bytes, print the relative events
         if (bytes > 0) {
             //printRaw(i, &systemEvent);
             setStrEvent(&systemEvent, &myEvent);

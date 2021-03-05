@@ -1,5 +1,3 @@
-# why does it output "a.out" and not "event"?
-
 OPTIONS = -Wall -pedantic
 
 event: event.o
