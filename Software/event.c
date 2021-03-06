@@ -273,17 +273,17 @@ void printFunctional(const struct str_event* event, bool* rec, bool* mode) {
 /*
  * Event handlers
  */
-void trigger() {
-    printf("TRIGGER PULSE\n");
+void trigger(const long double t, const struct input_event* event, const bool* rec) {
+    printf("%Lf, TRIGGER PULSE\n", t);
 }
-void gate(const int state) {
-    if (state == 1) {
+void gate(const long double t, const struct input_event* event, const bool* rec) {
+    if (event->value == 1) {
         printf("GATE ON\n");
     } else {
         printf("GATE OFF\n");
     }
 }
-void changeMode(bool* mode) {
+void changeMode(const long double t, const struct input_event* event, bool* mode, const bool* rec) {
     *mode = !(*mode);
     if (*mode) {
         printf("OFFSET MODE\n");
@@ -291,56 +291,66 @@ void changeMode(bool* mode) {
         printf("ATTENUATION MODE\n");
     }
 }
-void playback(bool* pb) {
+void playback(bool* pb, struct input_event* list, const unsigned int* length) {
     *pb = !(*pb);
     if (*pb) {
 	printf("START PLAYBACK\n");
+	for (int i = 0; i < *length; i++) {
+	    printf("TYPE: %hu, CODE: %hu\n", list[i].type, list[i].code);
+	}
     } else {
 	printf("STOP PLAYBACK\n");
     }
 }
-void erase(bool* pb) {
+void erase(bool* pb, struct input_event* list, const unsigned int* length) {
     if (*pb) {
-	playback(pb);
+	playback(pb, list, length);
     }
     printf("ERASE\n");
+    list = NULL;
 }
-void record(bool* rec, bool* pb) {
+void record(const long double t, const struct input_event* event, bool* rec, bool* pb, struct input_event* list, const unsigned int* length) {
     *rec = !(*rec);
     if (*rec) {
 	if (*pb) {
-	    playback(pb);
+	    playback(pb, list, length);
 	}
         printf("START RECORDING\n");
     } else {
         printf("STOP RECORDING\n");
-	playback(pb);
+	playback(pb, list, length);
     }
 }
-void move(const int val, const bool axis) {
+void move(const long double t, const struct input_event* event, const bool axis, const bool* rec) {
     if (axis) {
-        printf("X: %d\n", val);
+        printf("X: %d\n", event->value);
     } else {
-        printf("Y: %d\n", val);
+        printf("Y: %d\n", event->value);
     }
 }
-void wheel(const int val, const bool* mode) {
+void wheel(const long double t, const struct input_event* event, const bool* mode, const bool* rec) {
     static unsigned int attenuation = 0;
     static int offset = 0;
     
     if (*mode) {
-	if (val < 0) {
+	if (event->value < 0) {
 	    printf("DECREASING OFFSET: %d\n", --offset);
 	} else { 
 	    printf("INCREASING OFFSET: %d\n", ++offset);
 	}
     } else {
-	if (val < 0) {
+	if (event->value < 0) {
 	    printf("DECREASING ATTENUATION: %d\n", --attenuation);
 	} else {
 	    printf("INCREASING ATTENUATION: %d\n", ++attenuation);
 	}
     }
+}
+
+void pushEvent(struct input_event* list, unsigned int* length, struct input_event event) {
+    list = (struct input_event*) realloc(list, sizeof(list) + sizeof(event));
+    list[*length] = event;
+    (*length)++;
 }
 
 /* 
@@ -350,38 +360,57 @@ void handle(const struct input_event* event) {
     static bool rec = false; // recording state
     static bool pb = false; // playback state
     static bool mode = false; // false: attenuation | true: offset
+    const long double timestamp = (long double) event->time.tv_sec +
+	0.000001 * (long double) event->time.tv_usec;
+    bool relevant = false;
+    static struct input_event* list = NULL; // array containing all recorded events
+    static unsigned int length = 0;
     
     if (event->type == EV_KEY) {
         if (event->code == BTN_LEFT && event->value == 1) {
-            trigger();
+            trigger(timestamp, event, &rec);
+	    relevant = true;
         } else if (event->code == BTN_RIGHT) {
-            gate(event->value);
+            gate(timestamp, event, &rec);
+	    relevant = true;
         } else if (event->code == BTN_MIDDLE && event->value == 1) {
-            changeMode(&mode);
+            changeMode(timestamp, event, &mode, &rec);
+	    relevant = true;
         } else if (event->code == BTN_SIDE && event->value == 1) {
 	    if (rec) {
-		record(&rec, &pb);
+		record(timestamp, event, &rec, &pb, list, &length);
 	    }
-            erase(&pb);
+            erase(&pb, list, &length);
         } else if (event->code == BTN_EXTRA && event->value == 1) {
-            record(&rec, &pb);
+            record(timestamp, event, &rec, &pb, list, &length);
+	    relevant = true;
         }
     } else if (event->type == EV_REL) {
         if (event->code == REL_X) {
-            move(event->value, true);
+            move(timestamp, event, true, &rec);
+	    relevant = true;
         } else if (event->code == REL_Y) {
-            move(event->value, false);
+            move(timestamp, event, false, &rec);
+	    relevant = true;
         } else if (event->code == REL_WHEEL) {
-            wheel(event->value, &mode);
+            wheel(timestamp, event, &mode, &rec);
+	    relevant = true;
         }
     } else if (event->type == EV_ABS) {
         if (event->code == ABS_X) {
-            move(event->value, true);
+            move(timestamp, event, true, &rec);
+	    relevant = true;
         } else if (event->code == ABS_Y) {
-            move(event->value, false);
+            move(timestamp, event, false, &rec);
+	    relevant = true;
         } else if (event->code == ABS_WHEEL) {
-            wheel(event->value, &mode);
+            wheel(timestamp, event, &mode, &rec);
+	    relevant = true;
         }
+    }
+    
+    if (relevant && rec) {
+	pushEvent(list, &length, *event);
     }
 }
 
