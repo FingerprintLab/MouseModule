@@ -34,6 +34,11 @@ struct str_event {
     int value;
 };
 
+typedef struct {
+    struct input_event* array;
+    unsigned int length;
+} List;
+
 /*
  * Print the raw event
  */
@@ -178,7 +183,7 @@ void setStrEvent(const struct input_event* systemEvent, struct str_event* event)
  */
 void printHuman(unsigned int i, const struct str_event* event) {
     #ifdef NO_OTHER
-	if(strcmp(event->type, "TYPE_OTHER") == 0) return;
+        if(strcmp(event->type, "TYPE_OTHER") == 0) return;
     #endif
 
     #ifdef NO_SYN
@@ -201,17 +206,17 @@ void printHuman(unsigned int i, const struct str_event* event) {
         #ifdef NO_INDEX 
             printf("Type: %s, Code: %s, Value: %d\n",
             event->type, event->code, event->value);
-	#else
+        #else
             printf("%d.\nType: %s, Code: %s, Value: %d\n",
-            i, event->type, event->code, event->value);
-	#endif
+                i, event->type, event->code, event->value);
+        #endif
     #else
-	#ifdef NO_INDEX
+        #ifdef NO_INDEX
             printf("Time: %Lf, Type: %s, Code: %s, Value: %d\n",
             event->timestamp, event->type, event->code, event->value);
-	#else
+        #else
             printf("%d.\nTime: %Lf, Type: %s, Code: %s, Value: %d\n",
-            i, event->timestamp, event->type, event->code, event->value);
+                i, event->timestamp, event->type, event->code, event->value);
         #endif
     #endif
 }
@@ -224,50 +229,67 @@ void printFunctional(const struct str_event* event, bool* rec, bool* mode) {
     else if (strcmp(event->type, "EV_SYN") == 0) return;
 #ifndef NO_BTN
     else if (strcmp(event->type, "EV_KEY") == 0) {
-	if ((strcmp(event->code, "BTN_LEFT") == 0) && event->value == 1)
-	    printf("TRIGGER PULSE _|_\n");
-	else if (strcmp(event->code, "BTN_RIGHT") == 0) {
-	    if ((event->value) == 0)
-		printf("GATE OFF\n");
-	    else
-		printf("GATE ON\n");
+        if ((strcmp(event->code, "BTN_LEFT") == 0) && event->value == 1)
+            printf("TRIGGER PULSE _|_\n");
+        else if (strcmp(event->code, "BTN_RIGHT") == 0) {
+            if ((event->value) == 0)
+                printf("GATE OFF\n");
+            else
+                printf("GATE ON\n");
+            }
+        else if ((strcmp(event->code, "BTN_MIDDLE") == 0) && event->value == 1) {
+            *mode = !(*mode);
+            if (!(*mode))
+                printf("Change mode to ATTENUATION\n");
+            else
+                printf("Change mode to OFFSET\n");
         }
-	else if ((strcmp(event->code, "BTN_MIDDLE") == 0) && event->value == 1) {
-	    *mode = !(*mode);
-	    if (!(*mode))
-		printf("Change mode to ATTENUATION\n");
-	    else
-		printf("Change mode to OFFSET\n");
-	}
-	else if ((strcmp(event->code, "BTN_SIDE") == 0) && event->value == 1)
-	    printf("ERASE\n");
-	else if ((strcmp(event->code, "BTN_EXTRA") == 0) && event->value == 1) {
-	    *rec = !(*rec);
-	    if (!(*rec))
-	        printf("Stop recording. Start playback\n");
-	    else
-		printf("Start recording\n");
-	}
+        else if ((strcmp(event->code, "BTN_SIDE") == 0) && event->value == 1)
+            printf("ERASE\n");
+        else if ((strcmp(event->code, "BTN_EXTRA") == 0) && event->value == 1) {
+            *rec = !(*rec);
+            if (!(*rec))
+                printf("Stop recording. Start playback\n");
+            else
+                printf("Start recording\n");
+        }
 #endif
 #ifndef NO_REL
     } else if (strcmp(event->type, "EV_REL") == 0) {
-	if (strcmp(event->code, "REL_X") == 0)
-            printf("REL X: %d\n", event->value);
-	else if (strcmp(event->code, "REL_Y") == 0)
-	    printf("REL Y: %d\n", event->value);
+        if (strcmp(event->code, "REL_X") == 0)
+                printf("REL X: %d\n", event->value);
+        else if (strcmp(event->code, "REL_Y") == 0)
+            printf("REL Y: %d\n", event->value);
         else if (strcmp(event->code, "REL_WHEEL") == 0)
-	    printf("REL WHEEL: %d\n", event->value);
+            printf("REL WHEEL: %d\n", event->value);
 #endif
 #ifndef NO_ABS
     } else if (strcmp(event->type, "EV_ABS") == 0) {
         if (strcmp(event->code, "ABS_X") == 0)
             printf("ABS X: %d\n", event->value);
-	else if (strcmp(event->code, "ABS_Y") == 0)
-	    printf("ABS Y: %d\n", event->value);
-	else if (strcmp(event->code, "ABS_WHEEL") == 0)
-            printf("ABS WHEEL: %d\n", event->value);
+        else if (strcmp(event->code, "ABS_Y") == 0)
+            printf("ABS Y: %d\n", event->value);
+        else if (strcmp(event->code, "ABS_WHEEL") == 0)
+                printf("ABS WHEEL: %d\n", event->value);
     }
 #endif
+}
+
+/*
+ * Add events to a dynamic allocated array to record them
+ */
+void pushEvent(List* list, const struct input_event* event) {
+    list->array = (struct input_event*) realloc(list->array, sizeof(*event) * (list->length + 1));
+    list->array[list->length] = *event;
+    list->length += 1;
+}
+
+/*
+ * Erase the event list
+ */
+void emptyList(List* list) {
+    free(list->array);
+    list->length = 0;
 }
 
 /*
@@ -291,34 +313,35 @@ void changeMode(const long double t, const struct input_event* event, bool* mode
         printf("ATTENUATION MODE\n");
     }
 }
-void playback(bool* pb, struct input_event* list, const unsigned int* length) {
+void playback(bool* pb, List* list) {
     *pb = !(*pb);
     if (*pb) {
-	printf("START PLAYBACK\n");
-	for (int i = 0; i < *length; i++) {
-	    printf("TYPE: %hu, CODE: %hu\n", list[i].type, list[i].code);
-	}
+	    printf("START PLAYBACK, registered %d events\n", list->length);
+	    for (unsigned int i = 0; i < list->length; i++) {
+	        printf("PLAYBACK | TYPE: %hu, CODE: %hu\n", list->array[i].type, list->array[i].code);
+	    }
     } else {
-	printf("STOP PLAYBACK\n");
+	    printf("STOP PLAYBACK\n");
+        emptyList(list);
     }
 }
-void erase(bool* pb, struct input_event* list, const unsigned int* length) {
+void erase(bool* pb, List* list) {
     if (*pb) {
-	playback(pb, list, length);
+	    playback(pb, list);
     }
     printf("ERASE\n");
-    list = NULL;
+    emptyList(list);
 }
-void record(const long double t, const struct input_event* event, bool* rec, bool* pb, struct input_event* list, const unsigned int* length) {
+void record(const long double t, const struct input_event* event, bool* rec, bool* pb, List* list) {
     *rec = !(*rec);
     if (*rec) {
-	if (*pb) {
-	    playback(pb, list, length);
-	}
+        if (*pb) {
+            playback(pb, list);
+        }
         printf("START RECORDING\n");
     } else {
         printf("STOP RECORDING\n");
-	playback(pb, list, length);
+	    playback(pb, list);
     }
 }
 void move(const long double t, const struct input_event* event, const bool axis, const bool* rec) {
@@ -333,24 +356,18 @@ void wheel(const long double t, const struct input_event* event, const bool* mod
     static int offset = 0;
     
     if (*mode) {
-	if (event->value < 0) {
-	    printf("DECREASING OFFSET: %d\n", --offset);
-	} else { 
-	    printf("INCREASING OFFSET: %d\n", ++offset);
-	}
+        if (event->value < 0) {
+            printf("DECREASING OFFSET: %d\n", --offset);
+        } else { 
+            printf("INCREASING OFFSET: %d\n", ++offset);
+        }
     } else {
-	if (event->value < 0) {
-	    printf("DECREASING ATTENUATION: %d\n", --attenuation);
-	} else {
-	    printf("INCREASING ATTENUATION: %d\n", ++attenuation);
-	}
+        if (event->value < 0) {
+            printf("DECREASING ATTENUATION: %d\n", --attenuation);
+        } else {
+            printf("INCREASING ATTENUATION: %d\n", ++attenuation);
+        }
     }
-}
-
-void pushEvent(struct input_event* list, unsigned int* length, struct input_event event) {
-    list = (struct input_event*) realloc(list, sizeof(list) + sizeof(event));
-    list[*length] = event;
-    (*length)++;
 }
 
 /* 
@@ -361,56 +378,55 @@ void handle(const struct input_event* event) {
     static bool pb = false; // playback state
     static bool mode = false; // false: attenuation | true: offset
     const long double timestamp = (long double) event->time.tv_sec +
-	0.000001 * (long double) event->time.tv_usec;
+	    0.000001 * (long double) event->time.tv_usec;
     bool relevant = false;
-    static struct input_event* list = NULL; // array containing all recorded events
-    static unsigned int length = 0;
+    static List list = {NULL, 0}; // array containing all recorded events
     
     if (event->type == EV_KEY) {
         if (event->code == BTN_LEFT && event->value == 1) {
             trigger(timestamp, event, &rec);
-	    relevant = true;
+	        relevant = true;
         } else if (event->code == BTN_RIGHT) {
             gate(timestamp, event, &rec);
-	    relevant = true;
+	        relevant = true;
         } else if (event->code == BTN_MIDDLE && event->value == 1) {
             changeMode(timestamp, event, &mode, &rec);
-	    relevant = true;
+	        relevant = true;
         } else if (event->code == BTN_SIDE && event->value == 1) {
-	    if (rec) {
-		record(timestamp, event, &rec, &pb, list, &length);
-	    }
-            erase(&pb, list, &length);
+            if (rec) {
+                record(timestamp, event, &rec, &pb, &list);
+            }
+            erase(&pb, &list);
         } else if (event->code == BTN_EXTRA && event->value == 1) {
-            record(timestamp, event, &rec, &pb, list, &length);
-	    relevant = true;
+            record(timestamp, event, &rec, &pb, &list);
+	        relevant = true;
         }
     } else if (event->type == EV_REL) {
         if (event->code == REL_X) {
             move(timestamp, event, true, &rec);
-	    relevant = true;
+	        relevant = true;
         } else if (event->code == REL_Y) {
             move(timestamp, event, false, &rec);
-	    relevant = true;
+	        relevant = true;
         } else if (event->code == REL_WHEEL) {
             wheel(timestamp, event, &mode, &rec);
-	    relevant = true;
+	        relevant = true;
         }
     } else if (event->type == EV_ABS) {
         if (event->code == ABS_X) {
             move(timestamp, event, true, &rec);
-	    relevant = true;
+	        relevant = true;
         } else if (event->code == ABS_Y) {
             move(timestamp, event, false, &rec);
-	    relevant = true;
+	        relevant = true;
         } else if (event->code == ABS_WHEEL) {
             wheel(timestamp, event, &mode, &rec);
-	    relevant = true;
+	        relevant = true;
         }
     }
     
     if (relevant && rec) {
-	pushEvent(list, &length, *event);
+	    pushEvent(&list, event);
     }
 }
 
