@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <linux/input.h>
@@ -15,17 +16,19 @@
 /*
  * Uncomment these lines to skip some events or some infos
  */
-#define NO_TIME
+#define NO_INDEX
+//#define NO_TIME
+#define NO_OTHER
 #define NO_SYN
 //#define NO_BTN
 //#define NO_REL
-#define NO_ABS
+//#define NO_ABS
 
 /* 
  * Human readable event struct
  */
 struct str_event {
-    struct timeval time;
+    long double timestamp;
     const char* type;
     const char* code;
     unsigned int value;
@@ -46,7 +49,6 @@ void printRaw(unsigned int i, const struct input_event* event) {
 const char* getCode(const char* type, const unsigned short c) {
     //printf("B) TYPE: %s, CODE: 0x%x\n", type, c);
     if (strcmp(type,"EV_SYN") == 0) {
-        //printf("SYN\n");
         switch(c) {
             case SYN_REPORT:
                 return "SYN_REPORT";
@@ -71,7 +73,6 @@ const char* getCode(const char* type, const unsigned short c) {
                 break;
         }
     } else if (strcmp(type,"EV_KEY") == 0) {
-        //printf("KEY\n");
         switch(c) {
             case BTN_LEFT:
                 return "BTN_LEFT";
@@ -102,7 +103,6 @@ const char* getCode(const char* type, const unsigned short c) {
                 break;
         }
     } else if (strcmp(type, "EV_REL") == 0) {
-        //printf("REL\n");
         switch(c) {
             case REL_X:
                 return "REL_X";
@@ -127,7 +127,6 @@ const char* getCode(const char* type, const unsigned short c) {
                 break;
         }
     } else if (strcmp(type,"EV_ABS") == 0) {
-        //printf("ABS\n");
         switch(c) {
             case ABS_X:
                 return "ABS_X";
@@ -149,7 +148,6 @@ const char* getCode(const char* type, const unsigned short c) {
                 break;
         }
     } else {
-        //printf("OTHER\n");
         return "CODE_OTHER";
     }
 }
@@ -170,7 +168,7 @@ void setStrEvent(const struct input_event* systemEvent, struct str_event* event)
         event->type = "TYPE_OTHER";
     }
 
-    event->time = systemEvent->time;
+    event->timestamp = (double) systemEvent->time.tv_sec + 0.000001 * (double) systemEvent->time.tv_usec;
     event->value = systemEvent->value;
     event->code = getCode(event->type, systemEvent->code);
 }
@@ -178,7 +176,11 @@ void setStrEvent(const struct input_event* systemEvent, struct str_event* event)
 /*
  * Print the human readable event
  */
-void printStr(unsigned int i, const struct str_event* event) {
+void printHuman(unsigned int i, const struct str_event* event) {
+    #ifdef NO_OTHER
+	if(strcmp(event->type, "TYPE_OTHER") == 0) return;
+    #endif
+
     #ifdef NO_SYN
         if (strcmp(event->type,"EV_SYN") == 0) return;
     #endif
@@ -196,12 +198,73 @@ void printStr(unsigned int i, const struct str_event* event) {
     #endif
     
     #ifdef NO_TIME
-        printf("%d.\nType: %s, Code: %s, Value: %d\n",
-        i, event->type, event->code, event->value);
+        #ifdef NO_INDEX 
+            printf("Type: %s, Code: %s, Value: %d\n",
+            event->type, event->code, event->value);
+	#else
+            printf("%d.\nType: %s, Code: %s, Value: %d\n",
+            i, event->type, event->code, event->value);
+	#endif
     #else
-        printf("%d.\nSec: %ld, uSec: %ld Type: %s, Code: %s, Value: %d\n",
-        i, event->time.tv_sec, event->time.tv_usec, event->type, event->code, event->value);
+	#ifdef NO_INDEX
+            printf("Time: %Lf, Type: %s, Code: %s, Value: %d\n",
+            event->timestamp, event->type, event->code, event->value);
+	#else
+            printf("%d.\nTime: %Lf, Type: %s, Code: %s, Value: %d\n",
+            i, event->timestamp, event->type, event->code, event->value);
+        #endif
     #endif
+}
+
+void printFunctional(const struct str_event* event, bool* rec, bool* mode) {
+    if (strcmp(event->type, "TYPE_OTHER") == 0) return;
+    else if (strcmp(event->type, "EV_SYN") == 0) return;
+#ifndef NO_BTN
+    else if (strcmp(event->type, "EV_KEY") == 0) {
+	if ((strcmp(event->code, "BTN_LEFT") == 0) && event->value == 1)
+	    printf("TRIGGER PULSE _|_\n");
+	else if (strcmp(event->code, "BTN_RIGHT") == 0) {
+	    if ((event->value) == 0)
+		printf("GATE OFF\n");
+	    else
+		printf("GATE ON\n");
+        }
+	else if ((strcmp(event->code, "BTN_MIDDLE") == 0) && event->value == 1) {
+	    *mode = !(*mode);
+	    if (!(*mode))
+		printf("Change mode to ATTENUATION\n");
+	    else
+		printf("Change mode to OFFSET\n");
+	}
+	else if ((strcmp(event->code, "BTN_SIDE") == 0) && event->value == 1)
+	    printf("ERASE\n");
+	else if ((strcmp(event->code, "BTN_EXTRA") == 0) && event->value == 1) {
+	    *rec = !(*rec);
+	    if (!(*rec))
+	        printf("Stop recording. Start playback\n");
+	    else
+		printf("Start recording\n");
+	}
+#endif
+#ifndef NO_REL
+    } else if (strcmp(event->type, "EV_REL") == 0) {
+	if (strcmp(event->code, "REL_X") == 0)
+            printf("X: %d\n", event->value);
+	else if (strcmp(event->code, "REL_Y") == 0)
+	    printf("Y: %d\n", event->value);
+        else if (strcmp(event->code, "REL_WHEEL") == 0)
+	    printf("WHEEL: %d\n", event->value);
+#endif
+#ifndef NO_ABS
+    } else if (strcmp(event->type, "EV_ABS") == 0) {
+        if (strcmp(event->code, "ABS_X") == 0)
+            printf("X: %d\n", event->value);
+	else if (strcmp(event->code, "ABS_Y") == 0)
+	    printf("Y: %d\n", event->value);
+	else if (strcmp(event->code, "ABS_WHEEL") == 0)
+            printf("WHEEL: %d\n", event->value);
+    }
+#endif
 }
 
 int main(int argc, char** argv) {
@@ -216,6 +279,11 @@ int main(int argc, char** argv) {
     struct str_event myEvent;
     char filePath[18] = "/dev/input/event";
     strcat(filePath, argv[1]);
+    
+    bool rec = false;
+    bool mode = false; // false: attenuation | true: offset
+    //unsigned int attenuation = 0;
+    //int offset = 0;
 
     // Open the file
     mouse = fopen(filePath, "r");
@@ -232,7 +300,8 @@ int main(int argc, char** argv) {
         if (bytes > 0) {
             //printRaw(i, &systemEvent);
             setStrEvent(&systemEvent, &myEvent);
-            printStr(i, &myEvent);
+            //printHuman(i, &myEvent);
+	    printFunctional(&myEvent, &rec, &mode);
             i++;
         }
     }
