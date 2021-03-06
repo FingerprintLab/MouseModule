@@ -31,7 +31,7 @@ struct str_event {
     long double timestamp;
     const char* type;
     const char* code;
-    unsigned int value;
+    int value;
 };
 
 /*
@@ -216,6 +216,9 @@ void printHuman(unsigned int i, const struct str_event* event) {
     #endif
 }
 
+/*
+ * Print the operation that each event should trigger
+ */
 void printFunctional(const struct str_event* event, bool* rec, bool* mode) {
     if (strcmp(event->type, "TYPE_OTHER") == 0) return;
     else if (strcmp(event->type, "EV_SYN") == 0) return;
@@ -267,6 +270,121 @@ void printFunctional(const struct str_event* event, bool* rec, bool* mode) {
 #endif
 }
 
+/*
+ * Event handlers
+ */
+void trigger() {
+    printf("TRIGGER PULSE\n");
+}
+void gate(const int state) {
+    if (state == 1) {
+        printf("GATE ON\n");
+    } else {
+        printf("GATE OFF\n");
+    }
+}
+void changeMode(bool* mode) {
+    *mode = !(*mode);
+    if (*mode) {
+        printf("OFFSET MODE\n");
+    } else {
+        printf("ATTENUATION MODE\n");
+    }
+}
+void playback(bool* pb) {
+    *pb = !(*pb);
+    if (*pb) {
+	printf("START PLAYBACK\n");
+    } else {
+	printf("STOP PLAYBACK\n");
+    }
+}
+void erase(bool* pb) {
+    if (*pb) {
+	playback(pb);
+    }
+    printf("ERASE\n");
+}
+void record(bool* rec, bool* pb) {
+    *rec = !(*rec);
+    if (*rec) {
+	if (*pb) {
+	    playback(pb);
+	}
+        printf("START RECORDING\n");
+    } else {
+        printf("STOP RECORDING\n");
+	playback(pb);
+    }
+}
+void move(const int val, const bool axis) {
+    if (axis) {
+        printf("X: %d\n", val);
+    } else {
+        printf("Y: %d\n", val);
+    }
+}
+void wheel(const int val, const bool* mode) {
+    static unsigned int attenuation = 0;
+    static int offset = 0;
+    
+    if (*mode) {
+	if (val < 0) {
+	    printf("DECREASING OFFSET: %d\n", --offset);
+	} else { 
+	    printf("INCREASING OFFSET: %d\n", ++offset);
+	}
+    } else {
+	if (val < 0) {
+	    printf("DECREASING ATTENUATION: %d\n", --attenuation);
+	} else {
+	    printf("INCREASING ATTENUATION: %d\n", ++attenuation);
+	}
+    }
+}
+
+/* 
+ * Main handling function
+ */
+void handle(const struct input_event* event) {
+    static bool rec = false; // recording state
+    static bool pb = false; // playback state
+    static bool mode = false; // false: attenuation | true: offset
+    
+    if (event->type == EV_KEY) {
+        if (event->code == BTN_LEFT && event->value == 1) {
+            trigger();
+        } else if (event->code == BTN_RIGHT) {
+            gate(event->value);
+        } else if (event->code == BTN_MIDDLE && event->value == 1) {
+            changeMode(&mode);
+        } else if (event->code == BTN_SIDE && event->value == 1) {
+	    if (rec) {
+		record(&rec, &pb);
+	    }
+            erase(&pb);
+        } else if (event->code == BTN_EXTRA && event->value == 1) {
+            record(&rec, &pb);
+        }
+    } else if (event->type == EV_REL) {
+        if (event->code == REL_X) {
+            move(event->value, true);
+        } else if (event->code == REL_Y) {
+            move(event->value, false);
+        } else if (event->code == REL_WHEEL) {
+            wheel(event->value, &mode);
+        }
+    } else if (event->type == EV_ABS) {
+        if (event->code == ABS_X) {
+            move(event->value, true);
+        } else if (event->code == ABS_Y) {
+            move(event->value, false);
+        } else if (event->code == ABS_WHEEL) {
+            wheel(event->value, &mode);
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     // Check arguments
     if (argc == 1) {
@@ -279,11 +397,6 @@ int main(int argc, char** argv) {
     struct str_event myEvent;
     char filePath[18] = "/dev/input/event";
     strcat(filePath, argv[1]);
-    
-    bool rec = false;
-    bool mode = false; // false: attenuation | true: offset
-    //unsigned int attenuation = 0;
-    //int offset = 0;
 
     // Open the file
     mouse = fopen(filePath, "r");
@@ -301,7 +414,8 @@ int main(int argc, char** argv) {
             //printRaw(i, &systemEvent);
             setStrEvent(&systemEvent, &myEvent);
             //printHuman(i, &myEvent);
-	    printFunctional(&myEvent, &rec, &mode);
+	    //printFunctional(&myEvent, &rec, &mode);
+            handle(&systemEvent);
             i++;
         }
     }
