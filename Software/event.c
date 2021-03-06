@@ -249,20 +249,20 @@ void printFunctional(const struct str_event* event, bool* rec, bool* mode) {
 #ifndef NO_REL
     } else if (strcmp(event->type, "EV_REL") == 0) {
 	if (strcmp(event->code, "REL_X") == 0)
-            printf("X: %d\n", event->value);
+            printf("REL X: %d\n", event->value);
 	else if (strcmp(event->code, "REL_Y") == 0)
-	    printf("Y: %d\n", event->value);
+	    printf("REL Y: %d\n", event->value);
         else if (strcmp(event->code, "REL_WHEEL") == 0)
-	    printf("WHEEL: %d\n", event->value);
+	    printf("REL WHEEL: %d\n", event->value);
 #endif
 #ifndef NO_ABS
     } else if (strcmp(event->type, "EV_ABS") == 0) {
         if (strcmp(event->code, "ABS_X") == 0)
-            printf("X: %d\n", event->value);
+            printf("ABS X: %d\n", event->value);
 	else if (strcmp(event->code, "ABS_Y") == 0)
-	    printf("Y: %d\n", event->value);
+	    printf("ABS Y: %d\n", event->value);
 	else if (strcmp(event->code, "ABS_WHEEL") == 0)
-            printf("WHEEL: %d\n", event->value);
+            printf("ABS WHEEL: %d\n", event->value);
     }
 #endif
 }
