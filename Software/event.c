@@ -2,7 +2,14 @@
  * This program captures some significant mouse events
  * and displays them in a human readable format. The 
  * strings are taken from the definitions in "linux/input.h"
- * Missing: VALUE field in myEvent
+ * 
+ * TODO:
+ *  - Change the way events are recorded. the 'relevant'
+ *    variable is not suitable since it pushes also the last
+ *    RECORD event
+ *  - Not allow the main handler to work while in playback
+ *    mode (except for the ERASE event)
+ *  - Complete 'handlePlayback()'
  */
 
 #include <stdio.h>
@@ -10,11 +17,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <fcntl.h>
+#include <fcntl.h> 
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/time.h>
+#include <time.h>
+#include <pthread.h>
 #include <linux/input.h>
+#include <regex.h>
 
 /*
  * Uncomment these lines to skip some events or some infos
@@ -41,6 +50,34 @@ typedef struct {
     struct input_event* array;
     unsigned int length;
 } List;
+
+/*
+ * Get the file name corresponding to the mouse
+ */
+bool getFileName(FILE* fp, char* name) {
+    char* out = NULL;
+    size_t line_buf_size = 0;
+	char* token;
+
+	regex_t regex;
+	int value;
+
+	while(getline(&out, &line_buf_size, fp) > 0) {
+		if(strstr(out, "Handlers=mouse0")) {
+			token = strtok(out, " ");
+			value = regcomp(&regex, "event[0-9]", 0);
+			value = regexec(&regex, token, 0, NULL, 0);
+            while(value != 0) {
+                token = strtok(NULL, " ");
+                value = regcomp(&regex, "event[0-9]", 0);
+                value = regexec(&regex, token, 0, NULL, 0);
+            }
+		    strcpy(name, token);
+            return true; 
+		}
+	}
+	return false;
+}
 
 /*
  * Print the raw event
@@ -316,33 +353,40 @@ void changeMode(const long double t, const struct input_event* event, bool* mode
         printf("ATTENUATION MODE\n");
     }
 }
-void handlePlayback(List* list) {
-    for (unsigned int i = 0; i < list->length; i++) {
-        long double t = (long double)list->array[i].time.tv_sec + 0.000001 * (long double)list->array[i].time.tv_usec;
-        printf("PLAYBACK | TIME: %Lf, TYPE: %hu, CODE: %hu\n", t, list->array[i].type, list->array[i].code);
+void* handlePlayback(void* arg) {
+    List* list = (List*)arg;
+    clock_t start, end;
+    double elapsed;
+
+    while(1) {
+        printf("list length: %d\n", list->length);
+        for (unsigned int i = 1; i < list->length; i++) {
+            start = clock();
+            long double time1 = (long double)list->array[i-1].time.tv_sec + 0.000001 * (long double)list->array[i-1].time.tv_usec;
+            long double time2 = (long double)list->array[i].time.tv_sec + 0.000001 * (long double)list->array[i].time.tv_usec;
+            double interval = time2- time1;
+            printf("PLAYBACK | TIME: %Lf, TYPE: %hu, CODE: %hu\n", time2, list->array[i].type, list->array[i].code);
+            do {
+                end = clock();
+                elapsed = ((double) (end - start))/CLOCKS_PER_SEC;
+            } while(elapsed < interval);
+        }
     }
-    return;
+    pthread_exit(NULL);
+    return NULL;
 }
 void playback(bool* pb, List* list) {
     *pb = !(*pb);
     if (*pb) {
 	    printf("START PLAYBACK, registered %d events\n", list->length);
-
-        // Fork the process
-        pid_t parent = getpid();
-        pid_t pid = fork();
-        /*
-        if (pid == -1) {
-            printf("ERROR: Failed to fork\n");
-        } else if (pid > 0) {
-            //int status;
-            //waitpid(pid, &status, 0);
-        } else {
-            //execl("./handlePlayback", "handlePlayback", NULL);
-            //_exit(EXIT_FAILURE);
-        }
-        */
 	    
+        pthread_t thread;
+        //pthread_create(&thread, NULL, handlePlayback, (void*)&list);
+        //pthread_join(thread, NULL);
+
+        int error = pthread_create(&thread, NULL, &handlePlayback, (void*)list);
+        if (error != 0)
+            printf("Unable to create thread: %s\n", strerror(error));
     } else {
 	    printf("STOP PLAYBACK\n");
         emptyList(list);
@@ -413,7 +457,13 @@ void handle(const struct input_event* event) {
             gate(timestamp, event, &rec);
 	        relevant = true;
         } else if (event->code == BTN_MIDDLE && event->value == 1) {
-            changeMode(timestamp, event, &mode, &rec);
+
+            /*
+             * CLICK THE MOUSE WHEEL TO START/STOP RECORDING
+             * (for mice without extra buttons)
+             */
+            //changeMode(timestamp, event, &mode, &rec);
+            record(timestamp, event, &rec, &pb, &list);
 	        relevant = true;
         } else if (event->code == BTN_SIDE && event->value == 1) {
             if (rec) {
@@ -454,22 +504,28 @@ void handle(const struct input_event* event) {
 }
 
 int main(int argc, char** argv) {
-    // Check arguments
-    if (argc == 1) {
-        printf("USAGE: ./event <event-number>\n");
-        return EXIT_FAILURE;
-    }
-    
-    FILE *mouse;
+    FILE *devices, *mouse;
     struct input_event systemEvent;
     struct str_event myEvent;
-    char filePath[18] = "/dev/input/event";
-    strcat(filePath, argv[1]);
 
-    // Open the file
+    /* Open the devices file */
+    devices = fopen("/proc/bus/input/devices", "r");
+    if (devices == NULL) {
+        printf("ERROR: Unable to read /proc/bus/input/devices\n");
+    }
+
+    /* Get the file path corresponding to the mouse */
+    char filePath[18] = "/dev/input/";
+    char name[10];
+    if (getFileName(devices, name))
+        strcat(filePath, name);
+    else
+        printf("ERROR: Unable to find the mouse file\n");
+
+    /* Open the mouse file */
     mouse = fopen(filePath, "r");
     if(mouse == NULL) {
-        printf("ERROR Opening %s\n", filePath);
+        printf("ERROR: Unable to read %s\n", filePath);
         return EXIT_FAILURE;
     }
 
@@ -477,16 +533,15 @@ int main(int argc, char** argv) {
     while(1) {
         size_t bytes = fread(&systemEvent, sizeof(struct input_event), 1, mouse);
 
-        // If we managed to read some bytes, print the relative events
+        /* If we managed to read some bytes, print the relative events */
         if (bytes > 0) {
             //printRaw(i, &systemEvent);
             setStrEvent(&systemEvent, &myEvent);
             //printHuman(i, &myEvent);
-	    //printFunctional(&myEvent, &rec, &mode);
+	        //printFunctional(&myEvent, &rec, &mode);
             handle(&systemEvent);
             i++;
         }
     }
     return EXIT_SUCCESS;
 }
-
