@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <linux/input.h>
 
+//return the string "eventX"
 char* getEvent(){
 
 	char *out = NULL;
