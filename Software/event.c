@@ -6,10 +6,13 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/time.h>
 #include <linux/input.h>
 
@@ -313,13 +316,33 @@ void changeMode(const long double t, const struct input_event* event, bool* mode
         printf("ATTENUATION MODE\n");
     }
 }
+void handlePlayback(List* list) {
+    for (unsigned int i = 0; i < list->length; i++) {
+        long double t = (long double)list->array[i].time.tv_sec + 0.000001 * (long double)list->array[i].time.tv_usec;
+        printf("PLAYBACK | TIME: %Lf, TYPE: %hu, CODE: %hu\n", t, list->array[i].type, list->array[i].code);
+    }
+    return;
+}
 void playback(bool* pb, List* list) {
     *pb = !(*pb);
     if (*pb) {
 	    printf("START PLAYBACK, registered %d events\n", list->length);
-	    for (unsigned int i = 0; i < list->length; i++) {
-	        printf("PLAYBACK | TYPE: %hu, CODE: %hu\n", list->array[i].type, list->array[i].code);
-	    }
+
+        // Fork the process
+        pid_t parent = getpid();
+        pid_t pid = fork();
+        /*
+        if (pid == -1) {
+            printf("ERROR: Failed to fork\n");
+        } else if (pid > 0) {
+            //int status;
+            //waitpid(pid, &status, 0);
+        } else {
+            //execl("./handlePlayback", "handlePlayback", NULL);
+            //_exit(EXIT_FAILURE);
+        }
+        */
+	    
     } else {
 	    printf("STOP PLAYBACK\n");
         emptyList(list);
