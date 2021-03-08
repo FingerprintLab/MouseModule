@@ -1,55 +1,20 @@
 /*
- * This program captures some significant mouse events
- * and displays them in a human readable format. The 
- * strings are taken from the definitions in "linux/input.h"
+ * This file contains all the functions used to capture
+ * some significant mouse events and turn them into analog
+ * signals.
+ * For more info about the event catalogation in linux check
+ * "linux/input.h"
  * 
  * TODO:
- *  - Change the way events are recorded. the 'relevant'
- *    variable is not suitable since it pushes also the last
- *    RECORD event
- *  - Not allow the main handler to work while in playback
- *    mode (except for the ERASE event)
- *  - Complete 'handlePlayback()'
+ *  - Don't allow the handler to process mouse events during
+ *    playback
+ *  - Implement the attenuation/offset logic
+ *  - Find a suitable library to control the Pi GPIOs
+ *  - Generate the analog signals
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <fcntl.h> 
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <time.h>
-#include <pthread.h>
-#include <linux/input.h>
-#include <regex.h>
-
-/*
- * Uncomment these lines to skip some events or some infos
- */
-#define NO_INDEX
-//#define NO_TIME
-#define NO_OTHER
-#define NO_SYN
-//#define NO_BTN
-//#define NO_REL
-//#define NO_ABS
-
-/* 
- * Human readable event struct
- */
-struct str_event {
-    long double timestamp;
-    const char* type;
-    const char* code;
-    int value;
-};
-
-typedef struct {
-    struct input_event* array;
-    unsigned int length;
-} List;
+#include "event.h"
+#include "analog.h"
 
 /*
  * Get the file name corresponding to the mouse
@@ -63,7 +28,7 @@ bool getFileName(FILE* fp, char* name) {
 	int value;
 
 	while(getline(&out, &line_buf_size, fp) > 0) {
-		if(strstr(out, "Handlers=mouse0")) {
+		if(strstr(out, "mouse1")) {
 			token = strtok(out, " ");
 			value = regcomp(&regex, "event[0-9]", 0);
 			value = regexec(&regex, token, 0, NULL, 0);
@@ -318,18 +283,20 @@ void printFunctional(const struct str_event* event, bool* rec, bool* mode) {
 /*
  * Add events to a dynamic allocated array to record them
  */
-void pushEvent(List* list, const struct input_event* event) {
-    list->array = (struct input_event*) realloc(list->array, sizeof(*event) * (list->length + 1));
-    list->array[list->length] = *event;
-    list->length += 1;
+void pushEvent(Thread* thread, const struct input_event* event) {
+    thread->list.array = (struct input_event*) realloc(thread->list.array, sizeof(*event) * (thread->list.length + 1));
+    thread->list.array[thread->list.length] = *event;
+    thread->list.length += 1;
 }
 
 /*
  * Erase the event list
  */
-void emptyList(List* list) {
-    free(list->array);
-    list->length = 0;
+void stopThread(Thread* thread) {
+    free(thread->list.array);
+    thread->list.length = 0;
+    //thread->stop = false;
+    pthread_join(thread->id, NULL);
 }
 
 /*
@@ -354,61 +321,65 @@ void changeMode(const long double t, const struct input_event* event, bool* mode
     }
 }
 void* handlePlayback(void* arg) {
-    List* list = (List*)arg;
+    Thread* thread = (Thread*)arg;
     clock_t start, end;
     double elapsed;
 
     while(1) {
-        printf("list length: %d\n", list->length);
-        for (unsigned int i = 1; i < list->length; i++) {
+        printf("START\n");
+        for (unsigned int i = 0; i < thread->list.length-1; i++) {
             start = clock();
-            long double time1 = (long double)list->array[i-1].time.tv_sec + 0.000001 * (long double)list->array[i-1].time.tv_usec;
-            long double time2 = (long double)list->array[i].time.tv_sec + 0.000001 * (long double)list->array[i].time.tv_usec;
+            long double time1 = (long double)thread->list.array[i].time.tv_sec + 0.000001 * (long double)thread->list.array[i].time.tv_usec;
+            long double time2 = (long double)thread->list.array[i+1].time.tv_sec + 0.000001 * (long double)thread->list.array[i+1].time.tv_usec;
             double interval = time2- time1;
-            printf("PLAYBACK | TIME: %Lf, TYPE: %hu, CODE: %hu\n", time2, list->array[i].type, list->array[i].code);
+            
             do {
                 end = clock();
                 elapsed = ((double) (end - start))/CLOCKS_PER_SEC;
+                if (*thread->stop) {
+                    printf("EXIT THREAD\n");
+                    pthread_exit(NULL);
+                    return NULL;
+                }
             } while(elapsed < interval);
+            //printf("PLAYBACK | TIME: %Lf, TYPE: %hu, CODE: %hu\n", time2, thread->list.array[i+1].type, thread->list.array[i+1].code);
+            handle(&thread->list.array[i+1]);
         }
+        printf("END\n");
     }
     pthread_exit(NULL);
     return NULL;
 }
-void playback(bool* pb, List* list) {
+void playback(bool* pb, Thread* thread) {
     *pb = !(*pb);
     if (*pb) {
-	    printf("START PLAYBACK, registered %d events\n", list->length);
-	    
-        pthread_t thread;
-        //pthread_create(&thread, NULL, handlePlayback, (void*)&list);
-        //pthread_join(thread, NULL);
+	    printf("START PLAYBACK, registered %d events\n", thread->list.length);
 
-        int error = pthread_create(&thread, NULL, &handlePlayback, (void*)list);
-        if (error != 0)
-            printf("Unable to create thread: %s\n", strerror(error));
+        int error = pthread_create(&thread->id, NULL, &handlePlayback, (void*)thread);
+        if (error != 0) printf("ERROR: Unable to create thread: %s\n", strerror(error));
     } else {
 	    printf("STOP PLAYBACK\n");
-        emptyList(list);
     }
 }
-void erase(bool* pb, List* list) {
+void erase(bool* pb, Thread* thread, bool* stop) {
     if (*pb) {
-	    playback(pb, list);
+	    playback(pb, thread);
     }
     printf("ERASE\n");
-    emptyList(list);
+    *stop = true;
+    stopThread(thread);
+    *stop = false;
 }
-void record(const long double t, const struct input_event* event, bool* rec, bool* pb, List* list) {
+void record(const long double t, const struct input_event* event, bool* rec, bool* pb, Thread* thread) {
     *rec = !(*rec);
     if (*rec) {
         if (*pb) {
-            playback(pb, list);
+            playback(pb, thread);
         }
         printf("START RECORDING\n");
     } else {
         printf("STOP RECORDING\n");
-	    playback(pb, list);
+	    playback(pb, thread);
     }
 }
 void move(const long double t, const struct input_event* event, const bool axis, const bool* rec) {
@@ -447,34 +418,37 @@ void handle(const struct input_event* event) {
     const long double timestamp = (long double) event->time.tv_sec +
 	    0.000001 * (long double) event->time.tv_usec;
     bool relevant = false;
-    static List list = {NULL, 0}; // array containing all recorded events
+    //static List list = {NULL, 0}; // array containing all recorded events
+    static bool stop = false;
+    static Thread thread = {0, {NULL, 0}, &stop}; // thread data
     
     if (event->type == EV_KEY) {
-        if (event->code == BTN_LEFT && event->value == 1) {
+        if (event->code == BTN_LEFT && event->value == 1 && !pb) {
             trigger(timestamp, event, &rec);
 	        relevant = true;
-        } else if (event->code == BTN_RIGHT) {
+        } else if (event->code == BTN_RIGHT && !pb) {
             gate(timestamp, event, &rec);
 	        relevant = true;
-        } else if (event->code == BTN_MIDDLE && event->value == 1) {
+        } else if (event->code == BTN_MIDDLE && event->value == 1 && !pb) {
 
             /*
+             * --- ONLY FOR DEBUG PURPOSES ---
              * CLICK THE MOUSE WHEEL TO START/STOP RECORDING
              * (for mice without extra buttons)
              */
             //changeMode(timestamp, event, &mode, &rec);
-            record(timestamp, event, &rec, &pb, &list);
+            record(timestamp, event, &rec, &pb, &thread);
 	        relevant = true;
         } else if (event->code == BTN_SIDE && event->value == 1) {
             if (rec) {
-                record(timestamp, event, &rec, &pb, &list);
+                record(timestamp, event, &rec, &pb, &thread);
             }
-            erase(&pb, &list);
-        } else if (event->code == BTN_EXTRA && event->value == 1) {
-            record(timestamp, event, &rec, &pb, &list);
+            erase(&pb, &thread, &stop);
+        } else if (event->code == BTN_EXTRA && event->value == 1 && !pb) {
+            record(timestamp, event, &rec, &pb, &thread);
 	        relevant = true;
         }
-    } else if (event->type == EV_REL) {
+    } else if (event->type == EV_REL/* && !pb*/) {
         if (event->code == REL_X) {
             move(timestamp, event, true, &rec);
 	        relevant = true;
@@ -485,7 +459,7 @@ void handle(const struct input_event* event) {
             wheel(timestamp, event, &mode, &rec);
 	        relevant = true;
         }
-    } else if (event->type == EV_ABS) {
+    } else if (event->type == EV_ABS/* && !pb*/) {
         if (event->code == ABS_X) {
             move(timestamp, event, true, &rec);
 	        relevant = true;
@@ -499,49 +473,6 @@ void handle(const struct input_event* event) {
     }
     
     if (relevant && rec) {
-	    pushEvent(&list, event);
+	    pushEvent(&thread, event);
     }
-}
-
-int main(int argc, char** argv) {
-    FILE *devices, *mouse;
-    struct input_event systemEvent;
-    struct str_event myEvent;
-
-    /* Open the devices file */
-    devices = fopen("/proc/bus/input/devices", "r");
-    if (devices == NULL) {
-        printf("ERROR: Unable to read /proc/bus/input/devices\n");
-    }
-
-    /* Get the file path corresponding to the mouse */
-    char filePath[18] = "/dev/input/";
-    char name[10];
-    if (getFileName(devices, name))
-        strcat(filePath, name);
-    else
-        printf("ERROR: Unable to find the mouse file\n");
-
-    /* Open the mouse file */
-    mouse = fopen(filePath, "r");
-    if(mouse == NULL) {
-        printf("ERROR: Unable to read %s\n", filePath);
-        return EXIT_FAILURE;
-    }
-
-    unsigned int i = 0;
-    while(1) {
-        size_t bytes = fread(&systemEvent, sizeof(struct input_event), 1, mouse);
-
-        /* If we managed to read some bytes, print the relative events */
-        if (bytes > 0) {
-            //printRaw(i, &systemEvent);
-            setStrEvent(&systemEvent, &myEvent);
-            //printHuman(i, &myEvent);
-	        //printFunctional(&myEvent, &rec, &mode);
-            handle(&systemEvent);
-            i++;
-        }
-    }
-    return EXIT_SUCCESS;
 }
