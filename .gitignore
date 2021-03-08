@@ -1,4 +1,5 @@
 Software/.vscode
 Software/*
 !Software/*.c
+!Software/*.h
 !Software/makefile

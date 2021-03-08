@@ -1,10 +1,13 @@
 OPTIONS = -Wall -pedantic -pthread
 
-event: event.o
-	gcc -pthread -o event event.o
+main: main.o event.o
+	gcc -pthread -o main main.o event.o
 
-event.o: event.c
+main.o: event.h main.c
+	gcc -c $(OPTIONS) main.c
+
+event.o: event.h analog.h event.c
 	gcc -c $(OPTIONS) event.c
 
 clean:
-	rm event.o event
+	rm event.o main.o main
