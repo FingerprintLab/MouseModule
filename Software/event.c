@@ -28,7 +28,7 @@ bool getFileName(FILE* fp, char* name) {
 	int value;
 
 	while(getline(&out, &line_buf_size, fp) > 0) {
-		if(strstr(out, "mouse1")) {
+		if(strstr(out, "mouse")) {
 			token = strtok(out, " ");
 			value = regcomp(&regex, "event[0-9]", 0);
 			value = regexec(&regex, token, 0, NULL, 0);
