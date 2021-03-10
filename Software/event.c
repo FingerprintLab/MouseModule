@@ -6,15 +6,13 @@
  * "linux/input.h"
  * 
  * TODO:
- *  - Don't allow the handler to process mouse events during
- *    playback
  *  - Implement the attenuation/offset logic
  *  - Find a suitable library to control the Pi GPIOs
- *  - Generate the analog signals
+ *  - Generate the hardware signals
  */
 
 #include "event.h"
-#include "analog.h"
+#include "hw.h"
 
 /*
  * Get the file name corresponding to the mouse
@@ -57,7 +55,6 @@ void printRaw(unsigned int i, const struct input_event* event) {
  * on the TYPE field
  */
 const char* getCode(const char* type, const unsigned short c) {
-    //printf("B) TYPE: %s, CODE: 0x%x\n", type, c);
     if (strcmp(type,"EV_SYN") == 0) {
         switch(c) {
             case SYN_REPORT:
@@ -290,7 +287,7 @@ void pushEvent(Thread* thread, const struct input_event* event) {
 }
 
 /*
- * Erase the event list
+ * Erase the event list and stop the thread
  */
 void stopThread(Thread* thread) {
     free(thread->list.array);
@@ -302,17 +299,17 @@ void stopThread(Thread* thread) {
 /*
  * Event handlers
  */
-void trigger(const long double t, const struct input_event* event, const bool* rec) {
+void trigger(const long double t, const struct input_event* event) {
     printf("%Lf, TRIGGER PULSE\n", t);
 }
-void gate(const long double t, const struct input_event* event, const bool* rec) {
+void gate(const long double t, const struct input_event* event) {
     if (event->value == 1) {
         printf("GATE ON\n");
     } else {
         printf("GATE OFF\n");
     }
 }
-void changeMode(const long double t, const struct input_event* event, bool* mode, const bool* rec) {
+void changeMode(const long double t, const struct input_event* event, bool* mode) {
     *mode = !(*mode);
     if (*mode) {
         printf("OFFSET MODE\n");
@@ -376,20 +373,22 @@ void record(const long double t, const struct input_event* event, bool* rec, boo
         if (*pb) {
             playback(pb, thread);
         }
+        /* Alloc 0 memory to reinitialize the array */
+        thread->list.array = (struct input_event*) malloc(0);
         printf("START RECORDING\n");
     } else {
         printf("STOP RECORDING\n");
 	    playback(pb, thread);
     }
 }
-void move(const long double t, const struct input_event* event, const bool axis, const bool* rec) {
+void move(const long double t, const struct input_event* event, const bool axis) {
     if (axis) {
         printf("X: %d\n", event->value);
     } else {
         printf("Y: %d\n", event->value);
     }
 }
-void wheel(const long double t, const struct input_event* event, const bool* mode, const bool* rec) {
+void wheel(const long double t, const struct input_event* event, const bool* mode) {
     static unsigned int attenuation = 0;
     static int offset = 0;
     
@@ -416,20 +415,33 @@ void handle(const struct input_event* event) {
     static bool pb = false; // playback state
     static bool mode = false; // false: attenuation | true: offset
     const long double timestamp = (long double) event->time.tv_sec +
-	    0.000001 * (long double) event->time.tv_usec;
+	                    0.000001 * (long double) event->time.tv_usec;
     bool relevant = false;
-    //static List list = {NULL, 0}; // array containing all recorded events
     static bool stop = false;
     static Thread thread = {0, {NULL, 0}, &stop}; // thread data
     
+    /* If we're if playback mode and this function is called
+     * by the main thread, allow the handling only if it's
+     * an ERASE event.
+     */
+    if (pb && thread.id != pthread_self()) {
+        //printf("MAIN\n");
+        if (event->code == BTN_SIDE && event->value == 1) {
+            erase(&pb, &thread, &stop);
+        }
+        return;
+    } else {
+        //printf("THREAD\n");
+    }
+
     if (event->type == EV_KEY) {
-        if (event->code == BTN_LEFT && event->value == 1 && !pb) {
-            trigger(timestamp, event, &rec);
+        if (event->code == BTN_LEFT && event->value == 1) {
+            trigger(timestamp, event);
 	        relevant = true;
-        } else if (event->code == BTN_RIGHT && !pb) {
-            gate(timestamp, event, &rec);
+        } else if (event->code == BTN_RIGHT) {
+            gate(timestamp, event);
 	        relevant = true;
-        } else if (event->code == BTN_MIDDLE && event->value == 1 && !pb) {
+        } else if (event->code == BTN_MIDDLE && event->value == 1) {
 
             /*
              * --- ONLY FOR DEBUG PURPOSES ---
@@ -441,33 +453,38 @@ void handle(const struct input_event* event) {
 	        relevant = true;
         } else if (event->code == BTN_SIDE && event->value == 1) {
             if (rec) {
+                printf("ERASE WHILE IN RECORD MODE\n");
                 record(timestamp, event, &rec, &pb, &thread);
+                erase(&pb, &thread, &stop);
             }
-            erase(&pb, &thread, &stop);
-        } else if (event->code == BTN_EXTRA && event->value == 1 && !pb) {
+            if (pb) {
+                printf("ERASE WHILE IN PLAYBACK MODE\n");
+                erase(&pb, &thread, &stop);
+            }
+        } else if (event->code == BTN_EXTRA && event->value == 1) {
             record(timestamp, event, &rec, &pb, &thread);
 	        relevant = true;
         }
     } else if (event->type == EV_REL/* && !pb*/) {
         if (event->code == REL_X) {
-            move(timestamp, event, true, &rec);
+            move(timestamp, event, true);
 	        relevant = true;
         } else if (event->code == REL_Y) {
-            move(timestamp, event, false, &rec);
+            move(timestamp, event, false);
 	        relevant = true;
         } else if (event->code == REL_WHEEL) {
-            wheel(timestamp, event, &mode, &rec);
+            wheel(timestamp, event, &mode);
 	        relevant = true;
         }
     } else if (event->type == EV_ABS/* && !pb*/) {
         if (event->code == ABS_X) {
-            move(timestamp, event, true, &rec);
+            move(timestamp, event, true);
 	        relevant = true;
         } else if (event->code == ABS_Y) {
-            move(timestamp, event, false, &rec);
+            move(timestamp, event, false);
 	        relevant = true;
         } else if (event->code == ABS_WHEEL) {
-            wheel(timestamp, event, &mode, &rec);
+            wheel(timestamp, event, &mode);
 	        relevant = true;
         }
     }
