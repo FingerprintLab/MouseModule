@@ -6,7 +6,7 @@ main: main.o event.o
 main.o: event.h main.c
 	gcc -c $(OPTIONS) main.c
 
-event.o: event.h analog.h event.c
+event.o: event.h hw.h event.c
 	gcc -c $(OPTIONS) event.c
 
 clean:
