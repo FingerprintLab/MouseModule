@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
         printf("OPENINIG %s\n", filePath);
     }
 
-    unsigned int i = 0;
+    unsigned long i = 0;
     while(1) {
         size_t bytes = fread(&systemEvent, sizeof(struct input_event), 1, mouse);
 

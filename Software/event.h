@@ -62,10 +62,10 @@ typedef struct {
  * Function declarations
  */
 bool getFileName(FILE* fp, char* name);
-void printRaw(unsigned int i, const struct input_event* event);
+void printRaw(unsigned long i, const struct input_event* event);
 const char* getCode(const char* type, const unsigned short c);
 void setStrEvent(const struct input_event* systemEvent, struct str_event* event);
-void printHuman(unsigned int i, const struct str_event* event);
+void printHuman(unsigned long i, const struct str_event* event);
 void printFunctional(const struct str_event* event, bool* rec, bool* mode);
 void pushEvent(Thread* thread, const struct input_event* event);
 void stopThread(Thread* thread);

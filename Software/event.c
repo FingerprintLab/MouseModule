@@ -7,6 +7,7 @@
  * 
  * TODO:
  *  - Implement the attenuation/offset logic
+ *  - Implement the mouse movement logic (range constrains)
  *  - Find a suitable library to control the Pi GPIOs
  *  - Generate the hardware signals
  */
@@ -45,8 +46,8 @@ bool getFileName(FILE* fp, char* name) {
 /*
  * Print the raw event
  */
-void printRaw(unsigned int i, const struct input_event* event) {
-    printf("%d.\nsec: %ld, usec: %ld type: 0x%x, code: 0x%x, value: %d\n",
+void printRaw(unsigned long i, const struct input_event* event) {
+    printf("%lu.\nsec: %ld, usec: %ld type: 0x%x, code: 0x%x, value: %d\n",
     i, event->time.tv_sec, event->time.tv_usec, event->type, event->code, event->value);
 }
 
@@ -183,7 +184,7 @@ void setStrEvent(const struct input_event* systemEvent, struct str_event* event)
 /*
  * Print the human readable event
  */
-void printHuman(unsigned int i, const struct str_event* event) {
+void printHuman(unsigned long i, const struct str_event* event) {
     #ifdef NO_OTHER
         if(strcmp(event->type, "TYPE_OTHER") == 0) return;
     #endif
@@ -209,7 +210,7 @@ void printHuman(unsigned int i, const struct str_event* event) {
             printf("Type: %s, Code: %s, Value: %d\n",
             event->type, event->code, event->value);
         #else
-            printf("%d.\nType: %s, Code: %s, Value: %d\n",
+            printf("%lu.\nType: %s, Code: %s, Value: %d\n",
                 i, event->type, event->code, event->value);
         #endif
     #else
@@ -217,7 +218,7 @@ void printHuman(unsigned int i, const struct str_event* event) {
             printf("Time: %Lf, Type: %s, Code: %s, Value: %d\n",
             event->timestamp, event->type, event->code, event->value);
         #else
-            printf("%d.\nTime: %Lf, Type: %s, Code: %s, Value: %d\n",
+            printf("%lu.\nTime: %Lf, Type: %s, Code: %s, Value: %d\n",
                 i, event->timestamp, event->type, event->code, event->value);
         #endif
     #endif
@@ -392,13 +393,13 @@ void wheel(const long double t, const struct input_event* event, const bool* mod
     static unsigned int attenuation = 0;
     static int offset = 0;
     
-    if (*mode) {
+    if (*mode) { /* OFFSET */
         if (event->value < 0) {
             printf("DECREASING OFFSET: %d\n", --offset);
         } else { 
             printf("INCREASING OFFSET: %d\n", ++offset);
         }
-    } else {
+    } else { /* ATTENUATION */
         if (event->value < 0) {
             printf("DECREASING ATTENUATION: %d\n", --attenuation);
         } else {
