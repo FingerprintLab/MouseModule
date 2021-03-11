@@ -3,3 +3,4 @@ Software/*
 !Software/*.c
 !Software/*.h
 !Software/makefile
+!Software/GPIO/
