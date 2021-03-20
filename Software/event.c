@@ -382,17 +382,26 @@ void record(const long double t, const struct input_event* event, bool* rec, boo
 	    playback(pb, thread);
     }
 }
-void move(const long double t, const struct input_event* event, const bool axis) {
-    if (axis) {
-        printf("X: %d\n", event->value);
-    } else {
-        printf("Y: %d\n", event->value);
+void move(const long double t, const struct input_event* event, const bool axis, int* val) {
+    if (axis)
+        *val += event->value;
+    else
+        *val -= event->value;
+    
+    else if (*val > MAX_POS) {
+        *val = MAX_POS;
+    }
+    else if (*val < MIN_POS) {
+        *val = MIN_POS;
+    }
+
+    if (axis) { /* x */
+        printf("X: %d\n", *val);
+    } else { /* y */
+        printf("Y: %d\n", *val);
     }
 }
-void wheel(const long double t, const struct input_event* event, const bool* mode) {
-    static unsigned int attenuation = 0;
-    static int offset = 0;
-    
+void wheel(unsigned int* attenuation, int* offset, const long double t, const struct input_event* event, const bool* mode) {
     if (*mode) { /* OFFSET */
         if (event->value < 0) {
             printf("DECREASING OFFSET: %d\n", --offset);
@@ -407,11 +416,17 @@ void wheel(const long double t, const struct input_event* event, const bool* mod
         }
     }
 }
+void updatePosition(int* x, int* y, const unsigned int* attenuation, const int* offset) {
+    return;
+}
 
 /* 
  * Main handling function
  */
 void handle(const struct input_event* event) {
+    static int x = 0, y = 0;
+    static unsigned int attenuation = 0;
+    static int offset = 0;
     static bool rec = false; // recording state
     static bool pb = false; // playback state
     static bool mode = false; // false: attenuation | true: offset
@@ -468,24 +483,26 @@ void handle(const struct input_event* event) {
         }
     } else if (event->type == EV_REL/* && !pb*/) {
         if (event->code == REL_X) {
-            move(timestamp, event, true);
+            move(timestamp, event, true, &x);
 	        relevant = true;
         } else if (event->code == REL_Y) {
-            move(timestamp, event, false);
+            move(timestamp, event, false, &y);
 	        relevant = true;
         } else if (event->code == REL_WHEEL) {
-            wheel(timestamp, event, &mode);
+            wheel(&attenuation, &offset, timestamp, event, &mode);
+            updatePosition(&x, &y, &attenuation, &offset);
 	        relevant = true;
         }
     } else if (event->type == EV_ABS/* && !pb*/) {
         if (event->code == ABS_X) {
-            move(timestamp, event, true);
+            move(timestamp, event, true, &x);
 	        relevant = true;
         } else if (event->code == ABS_Y) {
-            move(timestamp, event, false);
+            move(timestamp, event, false, &y);
 	        relevant = true;
         } else if (event->code == ABS_WHEEL) {
-            wheel(timestamp, event, &mode);
+            wheel(&attenuation, &offset, timestamp, event, &mode);
+            updatePosition(&x, &y, &attenuation, &offset);
 	        relevant = true;
         }
     }

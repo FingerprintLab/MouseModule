@@ -31,6 +31,12 @@
 //#define NO_REL
 //#define NO_ABS
 
+/*
+ * Maximum & minimum mouse position
+ */
+#define MAX_POS 1000
+#define MIN_POS -MAX_POS
+
 /* 
  * Human readable event struct
  */
@@ -76,6 +82,6 @@ void* handlePlayback(void* arg);
 void playback(bool* pb, Thread* thread);
 void erase(bool* pb, Thread* thread, bool* stop);
 void record(const long double t, const struct input_event* event, bool* rec, bool* pb, Thread* thread);
-void move(const long double t, const struct input_event* event, const bool axis);
+void move(const long double t, const struct input_event* event, const bool axis, int* val);
 void wheel(const long double t, const struct input_event* event, const bool* mode);
 void handle(const struct input_event* event);
