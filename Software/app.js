@@ -1,8 +1,3 @@
-//var childProcess = require('child_process');
-//childProcess.exec('chromium-browser -kiosk ../client/window.htm');
-
-
-/*
 // --------------- EXPRESS --------------- //
 const path = require("path");
 const express = require('express');
@@ -26,15 +21,16 @@ app.post("/", (req, res) => {
         if (req.body.buttons === 1) {
             console.log("trigger pulse requested");
             trigger();
-        }
-        else if (req.body.buttons === 2) {
+        } else if (req.body.buttons === 2) {
             console.log("gate on requested");
             gate(true);
         }
-    }
-    else if (req.body.type === "mouseup" && req.body.buttons === 2) {
+    } else if (req.body.type === "mouseup" && req.body.buttons === 2) {
         console.log("gate off requested");
         gate(false);
+    } else if (req.body.type === "mousemove") {
+	console.log("mouse moved to X: " + req.body.clientX + ", Y: " + req.body.clientY);
+	move(req.body.clientX, req.body.clientY);
     }
     res.send("communication succeeded");
 });
@@ -43,83 +39,39 @@ app.listen(port, () => {
     console.log(`Server listening on port ${port}`)
 });
 // --------------------------------------- //
-*/
 
 
 // ----------------- RPIO ---------------- //
-var rpio = require('rpio');
+const PIN_PWM_X = 12;
+const PIN_GATE = 29;
+const PIN_TRIG = 31;
+const PIN_PWM_Y = 33;
+const range = 1024;
+const clockdiv = 8;
+const rpio = require("rpio");
 
-var pin = 12;           /* P12/GPIO18 */
-var range = 1024;       /* LEDs can quickly hit max brightness, so only use */
-var max = 512;          /*   the bottom 8th of a larger scale */
-var clockdiv = 8;       /* Clock divider (PWM refresh rate), 8 == 2.4MHz */
-var interval = 5;       /* setInterval timer, speed of pulses */
-var times = 10;          /* How many times to pulse before exiting */
-
-/*
- * Enable PWM on the chosen pin and set the clock and range.
- */
-rpio.open(pin, rpio.PWM);
+rpio.open(PIN_PWM_X, rpio.PWM);
+rpio.open(PIN_PWM_Y, rpio.PWM);
 rpio.pwmSetClockDivider(clockdiv);
-rpio.pwmSetRange(pin, range);
+rpio.pwmSetRange(PIN_PWM_X, range);
+rpio.pwmSetRange(PIN_PWM_Y, range);
+rpio.open(PIN_GATE, rpio.OUTPUT, rpio.LOW);
+rpio.open(PIN_TRIG, rpio.OUTPUT, rpio.LOW);
 
-/*
- * Repeatedly pulse from low to high and back again until times runs out.
- */
-var direction = 1;
-var data = 0;
-var pulse = setInterval(function() {
-        rpio.pwmSetData(pin, data);
-        if (data === 0) {
-                direction = 1;
-                if (times-- === 0) {
-                        clearInterval(pulse);
-                        rpio.open(pin, rpio.INPUT);
-                        return;
-                }
-        } else if (data === max) {
-                direction = -1;
-        }
-        data += direction;
-}, interval, data, direction, times);
-
-//rpio.open(PIN_OUT, rpio.OUTPUT, rpio.LOW);
-//rpio.open(PIN_IN, rpio.INPUT, rpio.PULL_UP);
-
-/*
 function trigger() {
-    rpio.write(PIN_OUT, rpio.HIGH);
-    rpio.msleep(5);
-    rpio.write(PIN_OUT, rpio.LOW); 
+    rpio.write(PIN_TRIG, rpio.HIGH);
+    rpio.usleep(500);
+    rpio.write(PIN_TRIG, rpio.LOW); 
 }
 
 function gate(on) {
-    rpio.write(PIN_OUT, on ? rpio.HIGH : rpio.LOW);
-}
-*/
-
-
-
-
-
-
-/*
-let buttonPressed = false;
-
-function pollcb(pin) {
-    rpio.msleep(10);
-    if (rpio.read(PIN_IN)) return;
-    if(pin === 0) buttonPressed = true;
-    console.log(pin);
+    rpio.write(PIN_GATE, on ? rpio.HIGH : rpio.LOW);
 }
 
-val = true;
-setInterval(function() {
-    setTimeout(function() {
-        rpio.write(PIN_OUT, val ? rpio.HIGH : rpio.LOW);
-        val = !val;
-    }, 1)
-}, 2);
-rpio.poll(PIN_IN, pollcb, rpio.POLL_LOW);
-*/
+function move(clientX, clientY) {
+    const x = Math.round((clientX + 0.5) * range);
+    const y = Math.round((clientY + 0.5) * range);
+    rpio.pwmSetData(PIN_PWM_X, x);
+    rpio.pwmSetData(PIN_PWM_Y, y);
+}
 // --------------------------------------- //
