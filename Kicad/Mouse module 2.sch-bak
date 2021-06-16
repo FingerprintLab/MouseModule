@@ -1215,13 +1215,19 @@ Wire Notes Line
 Wire Notes Line
 	6800 3950 3550 3950
 NoConn ~ 1750 1200
-NoConn ~ 2250 1200
 NoConn ~ 4600 5050
 NoConn ~ 4600 5450
 NoConn ~ 4600 4950
 NoConn ~ 1750 2000
 Wire Wire Line
-	2250 1300 3200 1300
+	2250 1300 2350 1300
 Wire Wire Line
 	2000 3350 3200 3350
+Wire Wire Line
+	2250 1200 2350 1200
+Wire Wire Line
+	2350 1200 2350 1300
+Connection ~ 2350 1300
+Wire Wire Line
+	2350 1300 3200 1300
 $EndSCHEMATC
