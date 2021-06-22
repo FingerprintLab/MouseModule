@@ -113,14 +113,13 @@ function handleEraseKey(e) {
 
 function move(e) {
     constrain(e); 
+    document.getElementById("coordinates").innerHTML =
+        "X: " + (e.clientX / width - 0.5) + ", Y: " + (e.clientY / height - 0.5);
     pointer.style.bottom = (e.clientY - 5) + "px";
     pointer.style.left = (e.clientX - 5) + "px";
     if (rec) {
         recording.push(e);
     }
-    e.clientX = e.clientX / width - 0.5;
-    e.clientY = e.clientY / height - 0.5;
-    document.getElementById("coordinates").innerHTML = "X: " + e.clientX + ", Y: " + e.clientY;
     sendServer(e);
 }
 
@@ -200,7 +199,7 @@ function record(e) {
         removeListeners();
         playback();
     }
-	else { // start recording
+    else { // start recording
         startAtt = attenuation;
         startOff = offset;
         startMode = mode;
