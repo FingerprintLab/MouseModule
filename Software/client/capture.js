@@ -27,26 +27,26 @@ addListeners();
 function handleMouseMove(e) {
     posX = e.clientX;
     posY = height - e.clientY;
-    ev = new EventData(e.type, e.buttons, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, e.timeStamp);
     move(ev);
 }
 
 function handleMouseDown(e) {
     e.preventDefault();
-    ev = new EventData(e.type, e.buttons, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, e.timeStamp);
     mouseDown(ev);
 }
 
 function handleMouseUp(e) {
     e.preventDefault();
     if (e.button !== 2) return;
-    ev = new EventData(e.type, e.button, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.button, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, e.timeStamp);
     gate(ev);
 }
 
 function handleWheel(e) {
     //e.preventDefault();
-    ev = new EventData(e.type, e.buttons, e.clientX, height - e.clientY, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, e.timeStamp);
     wheel(ev);
 }
 
@@ -106,17 +106,16 @@ function handleEraseKey(e) {
     // This is not working properly
     else if (e.key === "r" || e.key === "R") {
         erase();
-        ev = new EventData("mousedown", 16, width/2, height/2, 0, e.timeStamp);
+        ev = new EventData("mousedown", 16, 0, 0, 0, e.timeStamp);
         record(ev);
     }
 }
 
 function move(e) {
     constrain(e); 
-    document.getElementById("coordinates").innerHTML =
-        "X: " + (e.clientX / width - 0.5) + ", Y: " + (e.clientY / height - 0.5);
-    pointer.style.bottom = (e.clientY - 5) + "px";
-    pointer.style.left = (e.clientX - 5) + "px";
+    document.getElementById("coordinates").innerHTML = "X: " + e.clientX + ", Y: " + e.clientY;
+    pointer.style.bottom = ((e.clientY + 0.5) * height - 5) + "px";
+    pointer.style.left = ((e.clientX + 0.5) * width - 5) + "px";
     if (rec) {
         recording.push(e);
     }
@@ -124,21 +123,17 @@ function move(e) {
 }
 
 function constrain(e) {
-    let x = e.clientX/width - 0.5;
-    let y = e.clientY/height - 0.5;
     let max = border + (offset / (maxAttenuation * 2));
     let min = -border + (offset / (maxAttenuation * 2));
-    if (x > max)
-        x = max;
-    else if (x < min)
-        x = min;
-    e.clientX = (x+0.5)*width;
+    if (e.clientX > max)
+        e.clientX = max;
+    else if (e.clientX < min)
+        e.clientX = min;
 
-    if (y > max)
-        y = max;
-    else if (y < min)
-        y = min;
-    e.clientY = (0.5+y)*height;
+    if (e.clientY > max)
+        e.clientY = max;
+    else if (e.clientY < min)
+        e.clientY = min;
 }
 
 function mouseDown(e) {
@@ -339,18 +334,14 @@ function changeRange(e) {
     range.style.left = ((100-att)/2 + off/2) + "%";
 }
 
-function sendServer(data) {
+async function sendServer(e) {
     const options = {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(e)
     }
-    async function communicate() {
-        const response = await fetch("/", options);
-        const text = await response.text();
-        return text; //this return a promise so in order to get it when it's resolved we have to use '.then()'
-    }
-    return communicate()
+    const response = await fetch("/", options);
+    return await response.text();
 }
