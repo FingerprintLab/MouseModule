@@ -29,10 +29,8 @@ app.post("/", (req, res) => {
         console.log("gate off requested");
         gate(false);
     } else if (req.body.type === "mousemove") {
-        const x = req.body.clientX / width - 0.5;
-        const y = req.body.clientY / height - 0.5;
-        console.log("mouse moved to X: " + x + ", Y: " + y);
-        move(x,y);
+        console.log("mouse moved to X: " + req.body.clientX + ", Y: " + req.body.clientY);
+        move(req.body.clientX, req.body.clientY);
     }
     res.send("communication succeeded");
 });
