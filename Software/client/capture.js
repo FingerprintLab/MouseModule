@@ -18,42 +18,41 @@ function EventData(type, buttons, clientX, clientY, deltaY, timeStamp) {
     this.timeStamp = timeStamp;
 }
 
-// TODO :
-// Issue: attenuation problem in playback
-
+// TODO
+// BUG: attenuation problem in playback
 
 addListeners();
 
 function handleMouseMove(e) {
     posX = e.clientX;
     posY = height - e.clientY;
-    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, Math.round(e.timeStamp));
     move(ev);
 }
 
 function handleMouseDown(e) {
     e.preventDefault();
-    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, Math.round(e.timeStamp));
     mouseDown(ev);
 }
 
 function handleMouseUp(e) {
     e.preventDefault();
     if (e.button !== 2) return;
-    ev = new EventData(e.type, e.button, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.button, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, Math.round(e.timeStamp));
     gate(ev);
 }
 
 function handleWheel(e) {
     //e.preventDefault();
-    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, e.timeStamp);
+    ev = new EventData(e.type, e.buttons, e.clientX / width - 0.5, (height - e.clientY) / height - 0.5, e.deltaY, Math.round(e.timeStamp));
     wheel(ev);
 }
 
 function handleKeyDown(e) {
     if (e.key === "r" || e.key === "R") {
         console.log(e);
-        ev = new EventData("mousedown", 16, posX, posY, 0, e.timeStamp);
+        ev = new EventData("mousedown", 16, posX, posY, 0, Math.round(e.timeStamp));
         record(ev);
     }
     else if (e.key === "e" || e.key === "E") {
@@ -93,7 +92,7 @@ function handleErase(e) {
     }
     else if (e.buttons === 16) {
         erase();
-        ev = new EventData("mousedown", 16, e.clientX, height - e.clientY, 0, e.timeStamp);
+        ev = new EventData("mousedown", 16, e.clientX, height - e.clientY, 0, Math.round(e.timeStamp));
         record(ev);
     }
 }
@@ -106,13 +105,13 @@ function handleEraseKey(e) {
     // This is not working properly
     else if (e.key === "r" || e.key === "R") {
         erase();
-        ev = new EventData("mousedown", 16, 0, 0, 0, e.timeStamp);
+        ev = new EventData("mousedown", 16, 0, 0, 0, Math.round(e.timeStamp));
         record(ev);
     }
 }
 
 function move(e) {
-    constrain(e); 
+    constrain(e);
     document.getElementById("coordinates").innerHTML = "X: " + e.clientX + ", Y: " + e.clientY;
     pointer.style.bottom = ((e.clientY + 0.5) * height - 5) + "px";
     pointer.style.left = ((e.clientX + 0.5) * width - 5) + "px";
@@ -137,7 +136,7 @@ function constrain(e) {
 }
 
 function mouseDown(e) {
-    var button = e.buttons;
+    const button = e.buttons;
     if (button === 1) {
         trigger(e);
     }
@@ -148,7 +147,7 @@ function mouseDown(e) {
         changeMode(e);
     }
     else if (button === 8) {
-	    erase();
+        erase();
     }
     else if (button === 16) {
         record(e);
@@ -190,7 +189,7 @@ function changeMode(e) {
 
 function record(e) {
     rec = !rec;
-    if (!rec && recording.length !== 0) {
+    if (!rec && recording.length !== 0) { // start playback
         removeListeners();
         playback();
     }
@@ -219,33 +218,34 @@ function erase() {
         // add standard listeners
         addListeners();
     }
-
     pb = false;
     debug("ERASE");
 }
 
 function playback() {
     pb = true;
+    // for (let i in recording) console.log(recording[i]);
     animationPlayback();
     interval = setInterval(animationPlayback, (recording[recording.length-1].timeStamp - recording[0].timeStamp));
 }
 
 function animationPlayback() {
-    attenuation = startAtt; // ISSUE TO SOLVE
+    attenuation = startAtt;
     offset = startOff;
     mode = startMode;
+    changeRange();
     move(recording[0]);
     timeouts.push(recursiveTimeout(1));
 }
 
 function recursiveTimeout(i) {
-    if (i<recording.length) {
+    if (i < recording.length) {
         setTimeout(function() {
             try {
                 playbackEventHandler(recording[i]);
             }
             catch(error) {
-                console.warn(error);
+                console.warn("Erased while handling playback event");
             }
             timeouts.push(recursiveTimeout(i+1));
         }, (recording[i].timeStamp - recording[i-1].timeStamp));
@@ -258,8 +258,7 @@ function playbackEventHandler(e) {
         move(e);
     }
     else if (type === "mousedown") {
-        if (e.buttons !== 16)
-            mouseDown(e);
+        if (e.buttons !== 16) mouseDown(e);
     }
     else if (type === "mouseup") {
         if (e.buttons !== 2) return;
@@ -272,22 +271,24 @@ function playbackEventHandler(e) {
 }
 
 function debug(message) {
-    var tag = document.createElement("p");
-    var text = document.createTextNode(message);
+    const tag = document.createElement("p");
+    const text = document.createTextNode(message);
     tag.appendChild(text);
 
-    var element = document.getElementById("console");
+    const element = document.getElementById("console");
     if (element.firstChild != null)
         element.removeChild(element.firstChild);
     element.appendChild(tag);
 }
 
+// BUG: In playback mode there's an undesired attenuation offset
 function wheel(e) {
-    var message;
+    let message;
     if (e.deltaY > 0) {
         if (mode) {
             if (attenuation > -maxAttenuation) {
-                message = "Attenuation: " + (--attenuation);
+                attenuation -= 1;
+                message = "Attenuation: " + (attenuation);
                 sendServer(e);
             }
             else message = "Attenuation: " + (attenuation);
@@ -316,20 +317,20 @@ function wheel(e) {
             else message = "Offset: " + (offset);
         }
     }
-    changeRange(e);
+    changeRange();
+    move(e);
     debug(message);
 }
 
-function changeRange(e) {
-    //console.log("start = " + startAtt);
-    //console.log("attenuation = " + attenuation);
+// BUG: ↑
+function changeRange() {
     border = 0.5 + (attenuation / (maxAttenuation * 2));
-    move(e);
-    let att = (maxAttenuation + attenuation) * (100/maxAttenuation);
+    // let att = (maxAttenuation + attenuation) * (100/maxAttenuation);
+    const att = 100 * ((attenuation / maxAttenuation) + 1);
     range.style.width = att + "%";
     range.style.height = att + "%";
 
-    let off = offset * (100/maxAttenuation);
+    const off = offset * (100/maxAttenuation);
     range.style.bottom = ((100-att)/2 + off/2) + "%";
     range.style.left = ((100-att)/2 + off/2) + "%";
 }
@@ -344,4 +345,5 @@ async function sendServer(e) {
     }
     const response = await fetch("/", options);
     return await response.text();
+    return;
 }
